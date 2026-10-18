@@ -81,7 +81,7 @@ export function buildIslands(KIT) {
 export const PK = { y: .62, d: .5, h: .3 };
 /** 包的各段（x 范围），从右到左：数据、TCP 头、IP 头、链路层帧头；帧尾在最右 */
 export const SEG = { data: [-.3, .9], tcp: [-.78, -.3], ip: [-1.3, -.78], link: [-1.85, -1.3], fcs: [.9, 1.08] };
-export const LAB = { router: V(5.2, 0, 0), lane: { z: -7, x0: -4.2, x1: 4.2 }, layers: V(0, 0, 7), desk: V(0, 0, 15), map: V(0, 0, 23) };
+export const LAB = { router: V(5.2, 0, 0), lane: { z: -7, x0: -3.6, x1: 3.6 }, layers: V(0, 0, 7), desk: V(0, 0, 15), map: V(0, 0, 23) };
 
 export function buildLab(KIT, { cerf, kahn, mapImg }) {
   const scene = new THREE.Scene();
@@ -137,12 +137,13 @@ export function buildLab(KIT, { cerf, kahn, mapImg }) {
   const plate = mesh(KIT.rbox(.5, .1, .01, .01), rAlu); plate.position.set(1.45, .38, 1.0); R.add(plate);
 
   /* ---- 重传演示：两台主机 ---- */
-  const host = x => { const g = new THREE.Group(); g.position.set(x, 0, LAB.lane.z); scene.add(g); const b = mesh(KIT.rbox(.9, .5, .7, .04), rDark); b.position.y = .25; g.add(b); const s = mesh(new THREE.PlaneGeometry(.6, .22), KIT.M.emissive(0x9fd8ff, .5), { cast: false }); s.position.set(0, .28, .352); g.add(s); return g; };
+  // 主机和包都做得比较大，远景里也看得清（可读性精修）
+  const host = x => { const g = new THREE.Group(); g.position.set(x, 0, LAB.lane.z); scene.add(g); const b = mesh(KIT.rbox(1.15, .62, .86, .05), rDark); b.position.y = .31; g.add(b); const s = mesh(new THREE.PlaneGeometry(.8, .3), KIT.M.emissive(0x9fd8ff, .5), { cast: false }); s.position.set(0, .34, .432); g.add(s); return g; };
   const sender = host(LAB.lane.x0), receiver = host(LAB.lane.x1);
-  const lane = mesh(new THREE.BoxGeometry(LAB.lane.x1 - LAB.lane.x0 - .9, .006, .06), KIT.M.gold({ rough: .45 })); lane.position.set(0, .004, LAB.lane.z); scene.add(lane);
-  const segGeo = KIT.rbox(.42, .22, .3, .03, 3), segs = [], acks = [];
+  const lane = mesh(new THREE.BoxGeometry(LAB.lane.x1 - LAB.lane.x0 - 1.15, .008, .08), KIT.M.gold({ rough: .45 })); lane.position.set(0, .005, LAB.lane.z); scene.add(lane);
+  const segGeo = KIT.rbox(.6, .3, .4, .04, 3), segs = [], acks = [];
   for (let i = 0; i < 4; i++) { const m = mesh(segGeo, KIT.M.emissive(COL.tcpHex, 1.6)); m.visible = false; scene.add(m); segs.push(m); }
-  for (let i = 0; i < 3; i++) { const m = mesh(KIT.rbox(.26, .14, .2, .02, 2), KIT.M.emissive(0x7ee08a, 1.6)); m.visible = false; scene.add(m); acks.push(m); }
+  for (let i = 0; i < 3; i++) { const m = mesh(KIT.rbox(.38, .2, .28, .03, 2), KIT.M.emissive(0x7ee08a, 1.6)); m.visible = false; scene.add(m); acks.push(m); }
 
   /* ---- 分层：三种链路介质 ---- */
   const media = new THREE.Group(); media.position.copy(LAB.layers); scene.add(media);
