@@ -23,7 +23,7 @@ const PINYIN = 'mawodaoniuyueleyiqiedouhao', KEYS = 'qwertyuiopasdfghjklzxcvbnm'
 const HDR = (k, v) => `<span class="k">${k}</span> · ${v}`;
 
 export default {
-  id: '00', slug: 'prologue', title: '零点一秒', dur: 52,
+  id: '00', status: 'implemented', slug: 'prologue', title: '零点一秒', dur: 52,
   card: null,
   stamps: [],
   caps: [[0.6, 5.0, "纽约，晚上九点四十二分。一条消息被发出。"], [5.4, 9.8, "它先化作电磁波，飞向几百米外的基站，"], [10.0, 14.6, "再变成光脉冲，钻进埋在街道下的光纤。"], [15.0, 21.6, "横穿北美大陆，在俄勒冈海岸潜入太平洋——"], [22.0, 29.4, "沿着海底光缆跨越一万多公里，在上海登陆，点亮另一部手机。"], [29.8, 34.6, "这一路，信号只走了约十分之一秒。"], [35.2, 41.6, "一百六十年前，一封信从纽约寄到伦敦，要在海上漂十天以上。"], [42.0, 47.4, "把这段距离缩短到一眨眼的，是三条接力了一个半世纪的线索——"], [47.6, 51.6, "电波，计算，网络。"]],
@@ -306,10 +306,12 @@ export default {
     const P0 = Hs.phone.group.position.clone();
     const orb = (c, az, el, R, dy = 0) => [c.x + R * Math.cos(el) * Math.sin(az), c.y + dy + R * Math.sin(el), c.z + R * Math.cos(el) * Math.cos(az)];
     const camH = KIT.cam(32);
-    // 收尾：推向「电波」天线（顶部橙色柔性板），让它落在画面中心偏右 → 溶解到第 01 章的电报电键
+    // 收尾：推向「电波」天线（顶部橙色柔性板），让它横在画面中部偏右、和第 01 章开场电键杠杆的位置一致，
+    // 再以焦点虚化转到电键（两者都是「发送信号的开关」）；最后一秒画面渐暖、渐暗，接上 01 的暖色书桌
+    const END = { dist: .9, dx: -.19, dy: -.045 };
     const p50 = V(...orb(ctrH, .06, .12, 2.12, -.04)), endDir = p50.clone().sub(aW).normalize().lerp(Hs.normal, .3).normalize();
-    const endPos = aW.clone().addScaledVector(endDir, .52), rgt = V(0, 1, 0).cross(endDir).normalize();
-    const endLook = aW.clone().addScaledVector(rgt, -.07).add(V(0, -.012, 0));
+    const endPos = aW.clone().addScaledVector(endDir, END.dist), rgt = V(0, 1, 0).cross(endDir).normalize();
+    const endLook = aW.clone().addScaledVector(rgt, END.dx).add(V(0, END.dy, 0));
     const lookH = ctrH.clone().add(V(0, -.04, 0));
     const pathH = camPath([
       [41.6, orb(P0, .62, .08, 1.62, .02), P0.clone().add(V(0, .02, 0)).toArray(), 30],
@@ -328,13 +330,15 @@ export default {
         nyScreen(t);
         Hs.explode(easeIO(prog(t, 42.0, 44.5, u => u)));
         Hs.phone.group.rotation.y = .95 + .05 * Math.sin((t - 42) * .3);
-        shH.post.exposure = 1.06 - .8 * ss(47.1, 47.9, t) * (1 - ss(50.4, 51.4, t));
+        shH.post.exposure = (1.06 - .8 * ss(47.1, 47.9, t) * (1 - ss(50.4, 51.4, t))) * (1 - .35 * ss(52.0, 53.2, t));
+        const warm = ss(51.4, 53.0, t); shH.post.grade.tint = [1 + .06 * warm, 1, 1 - .1 * warm];
+        shH.post.dof.aperture = .0026 + .004 * ss(51.0, 52.4, t);
       },
     });
     ctx.callout({ shot: shH, at: () => AH.antenna.getWorldPosition(v3()), t0: 44.6, t1: 47.35, code: '01', title: '电波', sub: '天线 · 无线通信', side: 'right', dx: 150, dy: -80 });
     ctx.callout({ shot: shH, at: () => AH.soc.getWorldPosition(v3()), t0: 45.4, t1: 47.35, code: '02', title: '计算', sub: '芯片 · 数十亿个晶体管', side: 'left', dx: 250, dy: -60 });
     ctx.callout({ shot: shH, at: () => AH.modem.getWorldPosition(v3()), t0: 46.2, t1: 47.35, code: '03', title: '网络', sub: '基带 · 协议 · 光纤', side: 'right', dx: 200, dy: 100 });
-    ctx.callout({ shot: shH, at: () => AH.antenna.getWorldPosition(v3()), t0: 51.3, t1: 53.4, code: '01', title: '电波', sub: '发送信号的开关', side: 'right', dx: 120, dy: 90 });
+    ctx.callout({ shot: shH, at: () => AH.antenna.getWorldPosition(v3()), t0: 51.0, t1: 52.15, code: '01', title: '电波', sub: '发送信号的开关', side: 'right', dx: 120, dy: 90 });
     ctx.dom('title', 47.5, 51.2, .8);
     ctx.cue(44.5, 'tick', 1); ctx.cue(45.3, 'tick', 1); ctx.cue(46.1, 'tick', 1); ctx.cue(47.5, 'sub', .8); ctx.cue(51.0, 'whoosh', 1.6, .5);
   },

@@ -32,7 +32,7 @@ function setLinePts(line, pts) {
 }
 
 export default {
-  id: '03', slug: 'radio', title: '越过地平线', dur: 42,
+  id: '03', status: 'implemented', slug: 'radio', title: '越过地平线', dur: 42,
   card: {"title": "越过地平线", "short": "越过地平线", "meta": "1901 · 波尔杜 → 信号山"},
   stamps: [[0, "1901"]],
   caps: [[0.4, 5.8, "赫兹的电波只飞过十几米。意大利青年马可尼，想让电波跨越整个大洋。"], [6.2, 11.6, "他在英格兰康沃尔的波尔杜建起巨大的发射站。"], [12.0, 17.6, "1901 年 12 月 12 日，在大洋彼岸纽芬兰的信号山上，助手们用风筝把天线送上了天空。"], [18.0, 23.6, "地球是圆的，电波沿直线传播，按理说早该被弯曲的海面挡住。"], [24.0, 30.0, "但马可尼报告说，耳机里传来了三声轻响——摩尔斯电码的「S」，跨越了约 3500 公里。"], [30.4, 36.6, "后来人们才弄明白：高空的电离层像一面镜子，能把无线电波折回地面，让它绕过地平线。"], [37.0, 41.8, "信息能在空中飞了。下一个问题是：能不能让机器替人处理信息？"]],
@@ -272,10 +272,11 @@ export default {
     ctx.callout({ shot: shD, at: earC, title: '电话听筒', sub: '信号极弱，只能靠耳朵分辨', t0: 24.4, t1: 27.6, side: 'right', dx: 120, dy: 90 });
     ctx.callout({ shot: shD, at: tubeW, title: '金属屑检波器', sub: '电波一到，管里的金属屑就导通', t0: 24.9, t1: 27.6, side: 'left', dx: 110, dy: -110 });
     // 「S」读数：三点随三声「嗒」出现（跨 D1 / D2）
-    ctx.draw2d({ t0: 24.3, t1: 30.3, draw(g2, t) {
+    ctx.draw2d({ t0: 24.95, t1: 30.3, draw(g2, t) {   // 第一声「嗒」（25.3）前一刻出现，不留空面板
       const x = 1508, y = 128;
       g2.fillStyle = 'rgba(8,10,12,.42)'; g2.fillRect(x - 18, y - 30, 330, 150); ink.corners(g2, x - 18, y - 30, 330, 150, 12, ink.faint, 1);
-      ink.text(g2, '耳机里的信号', x, y - 6, { font: ink.mono(12), color: ink.dim });
+      ink.text(g2, '耳机里的信号', x, y - 6, { font: ink.mono(14), color: ink.dim });
+      g2.strokeStyle = ink.faint; g2.lineWidth = 1.2; for (let i = 0; i < 3; i++) { g2.beginPath(); g2.arc(x + 14 + i * 42, y + 48, 8, 0, 7); g2.stroke(); }   // 等待中的三个空位
       CLICKS.forEach((c, i) => { const a = ss(c - .01, c + .04, t); if (a <= 0) return; const fl = 1 - ss(c, c + .35, t); g2.fillStyle = fl > .02 ? `rgba(255,${Math.round(122 + 120 * (1 - fl))},${Math.round(48 + 190 * (1 - fl))},${a})` : ink.white; g2.beginPath(); g2.arc(x + 14 + i * 42, y + 48, 8 + 3 * fl, 0, 7); g2.fill(); });
       const s = ss(26.15, 26.5, t); if (s > 0) { g2.save(); g2.globalAlpha *= s; ink.text(g2, '=', x + 148, y + 60, { font: ink.mono(30), color: ink.dim }); ink.text(g2, 'S', x + 190, y + 76, { font: ink.cond(78, 600), color: ink.accent }); ink.text(g2, '摩尔斯「S」= 三短', x, y + 104, { font: ink.sans(15), color: ink.white }); g2.restore(); }
     } });

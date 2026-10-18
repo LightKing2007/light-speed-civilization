@@ -131,14 +131,14 @@ export async function photoShot(file, { from = { x: 0, y: 0, s: 1.04 }, to = { x
   };
 }
 /** 照片做成实体相纸（白边 + 轻微卷曲），放进 3D 场景里 */
-export function photoPrint(tex, { width = 3, border = .06, curl = .04, back = 0xe9e4d8 } = {}) {
+export function photoPrint(tex, { width = 3, border = .06, curl = .04, back = 0xe9e4d8, lift = .0015 } = {}) {
   const ia = tex.image.width / tex.image.height, h = width / ia;
   const grp = new THREE.Group();
   const geo = new THREE.PlaneGeometry(width + border * 2, h + border * 2, 32, 32); const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) / (width / 2 + border); pos.setZ(i, curl * x * x); } geo.computeVertexNormals();
   const paper = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: back, roughness: .7, sheen: .3 })); paper.castShadow = paper.receiveShadow = true; grp.add(paper);
   const pg = new THREE.PlaneGeometry(width, h, 32, 32); const pp = pg.attributes.position;
-  for (let i = 0; i < pp.count; i++) { const x = pp.getX(i) / (width / 2 + border); pp.setZ(i, curl * x * x + .0015); } pg.computeVertexNormals();
+  for (let i = 0; i < pp.count; i++) { const x = pp.getX(i) / (width / 2 + border); pp.setZ(i, curl * x * x + lift); } pg.computeVertexNormals();
   const img = new THREE.Mesh(pg, new THREE.MeshPhysicalMaterial({ map: tex, roughness: .35, clearcoat: .4, clearcoatRoughness: .3 })); img.receiveShadow = true; grp.add(img);
   return grp;
 }

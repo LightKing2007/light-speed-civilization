@@ -1,3 +1,4 @@
+// 【旧版 v1，已停用】v2 请用 tools/audio.mjs。见 README「旧版文件」。
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const fs = require('fs');
 (async () => {

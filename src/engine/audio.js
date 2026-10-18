@@ -1,7 +1,10 @@
 /* 生成式配乐与音效（Web Audio）。同一套代码：实时播放用 AudioContext，导出用 OfflineAudioContext 一次渲染整条音轨。
    - 配乐：每章一个和弦垫底（柔和的正弦/三角波叠加 + 低通），按章节「强度」叠加脉冲、拨弦、轻打击；可选环境底噪。
-   - 音效：章节在 build 里用 ctx.cue(t, 'name', ...args) 声明，时间是章内秒。 */
+   - 音效：章节在 build 里用 ctx.cue(t, 'name', ...args) 声明，时间是章内秒。
+   - 实时播放：以 clock.js 的统一时钟为准，节拍与音效都按影片时间提前约 0.15 s 排进 AudioContext（不依赖画面帧率）；
+     跳转时整批静音已排队的声音（每次跳转换一组「批次」总线），避免跳到新位置后还响起上一段的声音。 */
 import { clamp } from './util.js';
+import { makeScheduler } from './clock.js';
 
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const SIX = 60 / 84 / 4;
@@ -27,19 +30,34 @@ export const MUSIC = {
 const DEF = { chord: [50, 57, 62, 64], lvl: 1, drone: null };
 
 function graph(ctx) {
-  const g = { ctx, pad: null, drones: {}, lastBlip: -1 };
+  const g = { ctx, pad: null, drones: {}, lastBlip: -1, batches: 0 };
   const imp = sec => { const n = Math.floor(ctx.sampleRate * sec), b = ctx.createBuffer(2, n, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let s = 1234 + c * 77; for (let i = 0; i < n; i++) { s = (s * 16807) % 2147483647; d[i] = ((s / 2147483647) * 2 - 1) * Math.pow(1 - i / n, 3); } } return b; };
   g.master = ctx.createGain(); g.master.gain.value = .9;
   const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3; comp.attack.value = .01; comp.release.value = .25;
   g.master.connect(comp).connect(ctx.destination);
   g.rev = ctx.createConvolver(); g.rev.buffer = imp(3.2); const rg = ctx.createGain(); rg.gain.value = .42; g.rev.connect(rg).connect(g.master);
-  g.music = ctx.createGain(); g.music.gain.value = .55; g.music.connect(g.master); g.music.connect(g.rev);
-  g.padF = ctx.createBiquadFilter(); g.padF.type = 'lowpass'; g.padF.frequency.value = 1100; g.padF.Q.value = .5; g.padF.connect(g.music);
+  g.musicOut = ctx.createGain(); g.musicOut.gain.value = .55; g.musicOut.connect(g.master); g.musicOut.connect(g.rev);
+  g.padF = ctx.createBiquadFilter(); g.padF.type = 'lowpass'; g.padF.frequency.value = 1100; g.padF.Q.value = .5; g.padF.connect(g.musicOut);
   const lfo = ctx.createOscillator(); lfo.frequency.value = .05; const lg = ctx.createGain(); lg.gain.value = 380; lfo.connect(lg).connect(g.padF.frequency); lfo.start(0);
-  g.delay = ctx.createDelay(1.5); g.delay.delayTime.value = SIX * 3; const fb = ctx.createGain(); fb.gain.value = .3; const dl = ctx.createGain(); dl.gain.value = .35; g.delay.connect(fb).connect(g.delay); g.delay.connect(dl).connect(g.music);
-  g.sfx = ctx.createGain(); g.sfx.gain.value = .8; g.sfx.connect(g.master); const sr = ctx.createGain(); sr.gain.value = .25; g.sfx.connect(sr).connect(g.rev);
+  g.delay = ctx.createDelay(1.5); g.delay.delayTime.value = SIX * 3; g.fb = ctx.createGain(); g.fb.gain.value = .3; g.dl = ctx.createGain(); g.dl.gain.value = .35; g.delay.connect(g.fb).connect(g.delay); g.delay.connect(g.dl).connect(g.musicOut);
+  g.sfxOut = ctx.createGain(); g.sfxOut.gain.value = .8; g.sfxOut.connect(g.master); const sr = ctx.createGain(); sr.gain.value = .25; g.sfxOut.connect(sr).connect(g.rev);
   g.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const nd = g.noise.getChannelData(0); let s = 99; for (let i = 0; i < nd.length; i++) { s = (s * 16807) % 2147483647; nd[i] = (s / 2147483647) * 2 - 1; }
+  newBatch(g);
   return g;
+}
+/* 批次总线：节拍、音效、环境声、延迟回声的输入都接在 g.music / g.sfx / g.delayIn 上。
+   跳转时旧批次 15 ms 内淡出并断开（连同已经排进 AudioContext、还没响的声音），延迟线清空一圈，新声音走新批次。 */
+function newBatch(g) {
+  const c = g.ctx, t = c.currentTime;
+  for (const [k, out] of [['music', g.musicOut], ['sfx', g.sfxOut], ['delayIn', g.delay]]) {
+    const old = g[k]; if (old) { old.gain.cancelScheduledValues(t); old.gain.setValueAtTime(old.gain.value, t); old.gain.linearRampToValueAtTime(0, t + .015); setTimeout(() => old.disconnect(), 200); }
+    const b = c.createGain(); b.connect(out); g[k] = b;
+  }
+  if (g.drones) { for (const n of Object.keys(g.drones)) g.drones[n].src.forEach(x => { try { x.stop(t + .03); } catch (e) { } }); g.drones = {}; }
+  if (g.fb && g.batches++) {
+    const d = g.delay.delayTime.value + .05;
+    for (const [n, v] of [[g.fb, .3], [g.dl, .35]]) { n.gain.cancelScheduledValues(t); n.gain.setValueAtTime(0, t); n.gain.setValueAtTime(0, t + d); n.gain.linearRampToValueAtTime(v, t + d + .05); }
+  }
 }
 let RS = 7; const rnd = () => { RS = (RS * 16807) % 2147483647; return RS / 2147483647; };
 const nsrc = (g, t, dur) => { const s = g.ctx.createBufferSource(); s.buffer = g.noise; s.loop = true; s.start(t, rnd() * 1.5); s.stop(t + dur + .05); return s; };
@@ -65,7 +83,7 @@ function droneAt(g, t, want) {
   }
 }
 function kickAt(g, t, v) { const c = g.ctx, o = c.createOscillator(), gn = c.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(40, t + .2); env(gn, t, .004, v, .38); o.connect(gn).connect(g.music); o.start(t); o.stop(t + .45); }
-function pluckAt(g, t, f, v) { const c = g.ctx, o = c.createOscillator(), gn = c.createGain(), lp = c.createBiquadFilter(); o.type = 'triangle'; o.frequency.value = f; lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(500, t + .35); env(gn, t, .004, v, .6); o.connect(lp).connect(gn); gn.connect(g.music); gn.connect(g.delay); o.start(t); o.stop(t + .7); }
+function pluckAt(g, t, f, v) { const c = g.ctx, o = c.createOscillator(), gn = c.createGain(), lp = c.createBiquadFilter(); o.type = 'triangle'; o.frequency.value = f; lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(500, t + .35); env(gn, t, .004, v, .6); o.connect(lp).connect(gn); gn.connect(g.music); gn.connect(g.delayIn); o.start(t); o.stop(t + .7); }
 function hatAt(g, t, v) { const s = nsrc(g, t, .06), hp = g.ctx.createBiquadFilter(), gn = g.ctx.createGain(); hp.type = 'highpass'; hp.frequency.value = 8000; env(gn, t, .002, v, .045); s.connect(hp).connect(gn).connect(g.music); }
 function seqStep(g, t, st, m) {
   const s = st % 16, L = m.lvl, notes = m.chord;
@@ -98,23 +116,49 @@ export const FX_NAMES = Object.keys(FX);
 const musicFor = id => MUSIC[id] || DEF;
 
 export const AU = (() => {
-  let G = null, on = true, plan = [], off0 = 0, schedT = 0, step = 0, chI = -1, timer = null;
-  const filmNow = () => G ? G.ctx.currentTime - off0 : 0;
+  let G = null, on = true, plan = [], chI = -1, timer = null, clock = null, sched = null, lastOut = 0;
   function chapterAt(t) { let k = 0; for (let i = 0; i < plan.length; i++) if (t >= plan[i].start) k = i; return k; }
+  const live = () => G && G.ctx.state === 'running' && clock && clock.source === 'audio';
+  /** 影片时间 → AudioContext 时间（不早于「马上」，避免安排到已经过去的时刻） */
+  const at = t => Math.max(clock.toSource(t), G.ctx.currentTime + .003);
   function tick() {
-    if (!G || G.ctx.state !== 'running') return;
-    const now = filmNow(), ahead = now + .15;
+    if (!live()) return;
+    const now = clock.time();
     const k = chapterAt(now); if (k !== chI) { chI = k; const m = plan[k] ? plan[k].m : DEF; padAt(G, G.ctx.currentTime + .02, m); droneAt(G, G.ctx.currentTime + .02, m.drone); }
-    while (schedT < ahead) { const i = chapterAt(schedT); if (schedT >= now - .02) seqStep(G, schedT + off0, step, plan[i] ? plan[i].m : DEF); schedT += SIX; step++; }
+    sched.advance(now);
   }
   const api = {
-    init(music) { plan = (music || []).map(c => ({ start: c.start, m: c.music || musicFor(c.id || '') })); if (window.FILM) plan = window.FILM.chapters.map(c => ({ start: c.start, m: musicFor(c.id) })); if (G) return; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; G = graph(new AC()); G.master.gain.value = on ? .9 : 0; timer = setInterval(tick, 25); },
-    play(T) { if (!G) return; G.ctx.resume(); api.seek(T); },
+    /** music：各章 {start, id}；opt.clock：统一时钟（clock.js）；opt.cues：[影片秒, 音效名, 参数] 已排序 */
+    init(music, { clock: ck = null, cues = [] } = {}) {
+      plan = (music || []).map(c => ({ start: c.start, m: c.music || musicFor(c.id || '') })); if (window.FILM) plan = window.FILM.chapters.map(c => ({ start: c.start, m: musicFor(c.id) }));
+      if (ck) clock = ck;
+      sched = makeScheduler({
+        step: SIX, cues,
+        onStep: (t, n) => seqStep(G, at(t), n, plan.length ? plan[chapterAt(t)].m : DEF),
+        onCue: (t, c) => { if (!FX[c[1]]) return; try { FX[c[1]](G, at(t), ...(c[2] || [])); } catch (e) { console.warn(e); } },
+      });
+      if (G) return; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; G = graph(new AC()); G.master.gain.value = on ? .9 : 0; timer = setInterval(tick, 25);
+    },
+    available: () => !!G,
+    /** 诊断用（tools/playcheck.mjs）：AudioContext 与已开启的批次数 */
+    diag: () => G ? { state: G.ctx.state, currentTime: G.ctx.currentTime, batches: G.batches, sched: !!sched } : null,
+    running: () => !!G && G.ctx.state === 'running',
+    /** 音频时钟（秒）：此刻正从扬声器出来的那一刻在 AudioContext 时间轴上的位置；暂停时冻结 */
+    now() {
+      if (!G) return 0; const c = G.ctx;
+      if (c.state === 'running') {
+        let v = c.currentTime - (c.outputLatency || c.baseLatency || 0);
+        if (c.getOutputTimestamp) { const o = c.getOutputTimestamp(); if (o.performanceTime > 0 && o.contextTime > 0) v = o.contextTime + (performance.now() - o.performanceTime) / 1000; }
+        lastOut = Math.max(lastOut, Math.min(v, c.currentTime));
+      }
+      return lastOut;
+    },
+    play() { if (G) G.ctx.resume(); },
     pause() { if (G) G.ctx.suspend(); },
-    seek(T) { if (!G) return; off0 = G.ctx.currentTime - T; step = Math.ceil(T / SIX); schedT = step * SIX; chI = -1; },
+    /** 跳转：旧批次静音，从 t 起重新排队；配乐垫底与环境声在下一次 tick 按新章节重建 */
+    seek(t) { if (!G || !sched) return; newBatch(G); sched.seek(t); chI = -1; },
     setOn(v) { on = v; if (G) G.master.gain.setTargetAtTime(v ? .9 : 0, G.ctx.currentTime, .1); },
-    duck(v) { if (G) G.music.gain.setTargetAtTime(v ? .3 : .55, G.ctx.currentTime, .3); },
-    fx(name, args) { if (!G || !FX[name]) return; try { FX[name](G, G.ctx.currentTime + .01, ...(args || [])); } catch (e) { console.warn(e); } },
+    duck(v) { if (G) G.musicOut.gain.setTargetAtTime(v ? .3 : .55, G.ctx.currentTime, .3); },
     /** 离线渲染整条音轨 → WAV（Uint8Array），由 tools/audio.mjs 调用 */
     async offline(TOTAL, chapters, cues) {
       const sr = 48000, len = Math.ceil(sr * TOTAL), oc = new OfflineAudioContext(2, len, sr), g = graph(oc);

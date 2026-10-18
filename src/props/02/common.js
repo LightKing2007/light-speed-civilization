@@ -113,7 +113,7 @@ export function sparkAt(times, t, dur = .05) {
 
 /* ================= 电磁波前：折射透明壳 + 极淡掠射亮边（可按偶极方向图加权） ================= */
 const RIM_VS = `varying vec3 vN,vV,vWN;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vWN=normalize(mat3(modelMatrix)*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const RIM_FS = `uniform vec3 uC,uAxis;uniform float uA,uP,uDip;varying vec3 vN,vV,vWN;void main(){float f=1.-abs(dot(normalize(vN),normalize(vV)));float c=dot(normalize(vWN),uAxis);float w=mix(1.,1.-c*c,uDip);gl_FragColor=vec4(uC,pow(f,uP)*uA*w);}`;
+const RIM_FS = `uniform vec3 uC,uAxis;uniform float uA,uP,uDip;varying vec3 vN,vV,vWN;void main(){float f=clamp(1.-abs(dot(normalize(vN),normalize(vV))),0.,1.);float c=dot(normalize(vWN),uAxis);float w=mix(1.,1.-c*c,uDip);gl_FragColor=vec4(uC,pow(f,uP)*uA*w);}`;
 export function makeWaves({ count = 6, color = 0xdcecff, rim = .5, ior = 1.12, thick = .06, pow = 5, seg = 96, axis = V(1, 0, 0), dip = 1, spec = .2, env = .35, refract = true } = {}) {
   const group = new THREE.Group(), geo = new THREE.SphereGeometry(1, seg, seg / 2), shells = [];
   for (let i = 0; i < count; i++) {

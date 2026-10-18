@@ -1,5 +1,8 @@
-import sys
+# 【旧版 v1，已停用】v2 请用 npm run build（tools/build.mjs）。见 README「旧版文件」。
+import sys, os
 mode=sys.argv[1]  # cdn | local
+if mode=='cdn' and '--force' not in sys.argv and os.path.exists('index.html') and 'dist/film.js' in open('index.html',encoding='utf-8').read():
+    sys.exit('index.html 是 v2 的构建结果，build.py cdn 会覆盖它。确实要生成 v1 页面请加 --force。')
 land=open('land.b64').read().strip(); us=open('us.b64').read().strip()
 head=open('src/head.html').read()
 libs=['build/three.min.js','examples/js/shaders/CopyShader.js','examples/js/shaders/LuminosityHighPassShader.js','examples/js/postprocessing/EffectComposer.js','examples/js/postprocessing/RenderPass.js','examples/js/postprocessing/ShaderPass.js','examples/js/postprocessing/UnrealBloomPass.js','examples/js/environments/RoomEnvironment.js']

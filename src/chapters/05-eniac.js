@@ -27,7 +27,7 @@ const knobStep = t => 2 + KNOB_T.reduce((s, k) => s + ss(k, k + .07, t), 0);
 const roomState = t => ({ value: lampValue(t), fail: failK(t), flash: flashK(t), plugU: plugU(t), knob: knobStep(t), warm: t > 32 && t < 37 ? .006 : 0, spot: t > 39 ? 22 : 10 });
 
 export default {
-  id: '05', slug: 'eniac', title: '钢铁之躯', dur: 46,
+  id: '05', status: 'implemented', slug: 'eniac', title: '钢铁之躯', dur: 46,
   card: { act: '第二部', actName: '计算', title: '钢铁之躯', short: '钢铁之躯', meta: 'ENIAC · 1943 — 1946 · 费城' },
   stamps: [[0, '1946']],
   caps: [[0.4, 6.8, '十年后，通用电子计算机有了钢铁之躯：1946 年 2 月，ENIAC 公开亮相。'], [7.2, 13.6, '它塞满了一万七千多只真空管，重约 27 吨，耗电 150 千瓦，占满一整个房间。'], [14.0, 20.4, '真空管就是它的开关：灯丝烧热阴极，电子被正电的阳极吸走，形成电流；'], [20.8, 26.6, '中间的栅极只要加上一点负电压，就能把电子流挡回去——一通一断，就是一个电子开关。'], [27.0, 32.8, 'ENIAC 每秒能做 5000 次加法：人工要算十几个小时的弹道，它半分钟就能算完。'], [33.2, 38.8, '可真空管发热、易坏，刚投入使用时，几乎每天都有管子烧掉。'], [39.2, 45.6, '更麻烦的是，换一道题，程序员们就得重新插线、拨开关，常常要忙上好几天。']],

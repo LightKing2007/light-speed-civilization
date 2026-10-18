@@ -119,7 +119,7 @@ export class HUD {
     this.stage = $('stage'); this.svg = $('hudsvg'); this.labels = $('hudlabels'); this.cv = $('hud2d'); this.g2 = this.cv.getContext('2d');
     this.cap = $('cap'); this.card = $('card'); this.stamp = $('stamp'); this.stat = $('stat'); this.lower = $('lower');
     this.dpr = 0; this._cap = null; this._card = null; this._stat = null; this._lower = null;
-    this.speak = null;
+    this.speak = null; this.onError = null;
   }
   setScale(stageScale, dpr) {
     this.stage.style.transform = `scale(${stageScale})`;
@@ -145,7 +145,7 @@ export class HUD {
     for (const { ch, t, vis } of list) for (const d of ch._draw || []) {
       const v = d.shot ? vis(d.shot) : vis(null);
       const a = (d.t1 == null ? ss(d.t0, d.t0 + d.fade, t) : win(t, d.t0, d.t1, d.fade)) * v;
-      if (a > .002) { g.save(); g.globalAlpha = a; try { d.draw(g, t, a, p => d.shot ? project(p, d.shot.camera, {}) : null); } catch (e) { console.error(e); } g.restore(); }
+      if (a > .002) { g.save(); g.globalAlpha = a; try { d.draw(g, t, a, p => d.shot ? project(p, d.shot.camera, {}) : null); } catch (e) { this.onError ? this.onError(e, ch, t) : console.error(e); } g.restore(); }
     }
     this.updCaption(cur, tl, live); this.updCard(cur, tl); this.updStat(cur, tl); this.updLower(cur, tl);
   }

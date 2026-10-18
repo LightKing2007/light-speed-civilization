@@ -34,7 +34,7 @@ void main(){
  float cs=0.;if(uHasClouds>.5){vec2 o=vec2(L.x,L.y)*0.;vec3 Lt=L-N*mu;vec2 cuv=vUv+vec2(uCloudRot,0.);vec2 du=vec2(-dot(Lt,normalize(cross(vec3(0.,1.,0.),N)))*.0016,dot(Lt,cross(N,normalize(cross(vec3(0.,1.,0.),N))))*.0016);cs=texture2D(tClouds,cuv+du).r;}
  vec3 col=alb*NdL*sunT*(1.-uCloudShadow*cs)*3.2;
  // 海面高光（GGX 近似）
- if(uSpec>0.){vec3 Hh=normalize(L+Vd);float nh=max(dot(N,Hh),0.);float a=.09;float a2=a*a;float dd=nh*nh*(a2-1.)+1.;float D=a2/(3.14159*dd*dd);float F=.02+.98*pow(1.-max(dot(Hh,Vd),0.),5.);
+ if(uSpec>0.){vec3 Hh=normalize(L+Vd);float nh=max(dot(N,Hh),0.);float a=.09;float a2=a*a;float dd=nh*nh*(a2-1.)+1.;float D=a2/(3.14159*dd*dd);float F=.02+.98*pow(clamp(1.-dot(Hh,Vd),0.,1.),5.);
   col+=vec3(1.,.96,.9)*sunT*D*F*NdL*w*uSpec*(1.-cs*.8)*.9;}
  // 夜景灯光
  if(uHasNight>.5){vec3 nl=texture2D(tNight,vUv).rgb;float lum=dot(nl,vec3(.3333));col+=vec3(1.,.72,.42)*pow(lum,1.6)*uNight*(1.-smoothstep(-.2,.05,mu))*(1.-cs*.6);}
@@ -85,6 +85,8 @@ export async function makeEarth(ctx, o = {}) {
   const files = { day: f('day'), night: f('lights') || f('night'), clouds: f('clouds'), normal: f('normal'), water: f('water_mask') };
   const load = (k, opt) => files[k] ? A.tex(files[k], { aniso: 16, ...opt }).catch(() => null) : Promise.resolve(null);
   const [day, night, clouds, normal, water] = await Promise.all([load('day'), load('night'), load('clouds', { srgb: false }), load('normal', { srgb: false }), load('water', { srgb: false })]);
+  // 云层按经度漂移（uv.x + uCloudRot），必须水平循环取样；否则 u > 1 处被夹到边缘，日期变更线附近出现一条拉丝接缝
+  if (clouds && clouds.wrapS !== THREE.RepeatWrapping) { clouds.wrapS = THREE.RepeatWrapping; clouds.needsUpdate = true; }
   const R = R_EARTH, group = new THREE.Group();
   const white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); white.needsUpdate = true;
   const sun = V(1, .2, .3).normalize();

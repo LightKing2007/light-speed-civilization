@@ -90,6 +90,8 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #endcard h2{margin:0;font:900 130px/1 var(--f-serif);letter-spacing:.18em;color:#fff}
 #endcard .sub{font:400 30px/1.6 var(--f-sans);letter-spacing:.06em;color:var(--ink)}
 #endcard .src{max-width:1400px;font:400 14px/1.9 var(--f-mono);letter-spacing:.05em;color:var(--dim)}
+#chstate{position:absolute;right:64px;top:52px;padding:6px 12px;font:600 15px var(--f-mono);letter-spacing:.14em;color:#111;background:#ffd23f;opacity:0}
+#chstate.placeholder,#chstate.failed{opacity:.92} #chstate.failed{background:var(--warn);color:#fff}
 #dbg{display:none;position:absolute;right:16px;top:12px;font:500 14px var(--f-mono);color:#0f0;background:#000a;padding:4px 8px}
 body.debug #dbg{display:block}
 /* 播放控件 */
@@ -130,13 +132,14 @@ body.render #ctrl,body.render #intro,body.render #replay,body.render #loading{di
     <div id="endcard">
       <h2>光速文明</h2>
       <div class="sub">你此刻看到的每一帧画面，都乘着这场接力抵达。</div>
-      <div class="src">数据：ITU《Facts and Figures 2025》· TeleGeography 海底光缆数据（CC BY-NC-SA 3.0）· CelesTrak / J. McDowell 卫星数据 · Netcraft · 各章所注来源<br>素材：NASA（地球影像，公有领域）· Wikimedia Commons（历史照片）· Poly Haven（CC0 环境光、材质与模型）· 美国陆军（ENIAC 照片）· 完整清单见 assets/CREDITS.md<br>全部画面由 three.js 实时渲染</div>
+      <div class="src">数据：ITU《Facts and Figures 2025》· TeleGeography 海底光缆数据（CC BY-NC-SA 3.0）· CelesTrak / J. McDowell 卫星数据 · K. Rupp 微处理器数据（CC BY 4.0）· 世界银行 · Natural Earth · Netcraft · 各章所注来源<br>素材：NASA（地球影像，公有领域）· Wikimedia Commons（历史照片）· Poly Haven（CC0 环境光、材质与模型）· 美国陆军（ENIAC 照片）· 完整清单见 assets/CREDITS.md<br>全部画面由 three.js 实时渲染</div>
     </div>
     <div id="card"></div>
     <div id="stamp"></div>
     <div id="stat"></div>
     <div id="lower"></div>
     <div id="cap" aria-live="polite"></div>
+    <div id="chstate"></div>
     <div id="dbg"></div>
   </div>
 </div>

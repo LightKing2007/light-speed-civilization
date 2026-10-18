@@ -25,7 +25,7 @@ const PRESS = [...M_A1, ...M_A2, ...WHAT.iv, ...HATH.iv];
 const keyAt = t => { let a = 0; for (const [d, u] of PRESS) { if (t < d - .05 || t > u + .1) continue; a = Math.max(a, ss(d, d + .018, t) * (1 - ss(u, u + .028, t))); } return a; };
 
 export default {
-  id: '01', slug: 'telegraph', title: '跨洋电报', dur: 48,
+  id: '01', status: 'implemented', slug: 'telegraph', title: '跨洋电报', dur: 48,
   card: {"act": "第一部", "actName": "电波", "title": "跨洋电报", "short": "跨洋电报", "meta": "1844 — 1866 · 大西洋"},
   stamps: [[0, "1844"], [19, "1866"]],
   caps: [[0.4, 6.4, "1844 年，摩尔斯的电报线连通华盛顿与巴尔的摩：按下电键，电路接通；松开，电路断开。"], [6.8, 12.8, "长短不一的电流脉冲，在远处敲出「嘀」和「嗒」——这就是摩尔斯电码。"], [13.2, 18.8, "可要跨过大西洋，导线就得沉进数千米深的海底。"], [19.2, 24.6, "1866 年，巨轮「大东方号」铺通了第一条长期可用的跨大西洋电缆。"], [25.0, 31.0, "电缆的核心是一束铜线，裹着叫作古塔胶的天然树胶绝缘，外面再缠上铁丝铠装。"], [31.4, 37.4, "但几千公里的电缆，电阻与电容沿线层层累积，清脆的脉冲到了对岸，被「抹」成一个缓慢的鼓包。"], [37.8, 42.4, "发报员只能放慢速度，每分钟只发得出几个单词。"], [42.8, 47.8, "即便如此，欧美之间的消息，也从十多天缩短到了几分钟。"]],
@@ -101,7 +101,8 @@ export default {
     // ---- A1 电键特写（0–4.0）：画面左 40% 留给章节卡 ----
     const cA1 = KIT.cam(26);
     const pA1 = camPath([[0, [.27, .105, .2], [-.035, .03, .0], 26], [4.4, [.215, .082, .158], [-.03, .03, .005], 25]]);
-    const shA1 = ctx.shot({ t0: 0, name: 'A1 电键', in: { type: 'dissolve', dur: 1.2 }, scene: sA, camera: cA1,
+    // 焦点虚化转场：00 结尾的天线 → 电键（两者都是「发送信号的开关」）
+    const shA1 = ctx.shot({ t0: 0, name: 'A1 电键', in: { type: 'blur', dur: 1.4, params: [5] }, scene: sA, camera: cA1,
       post: { exposure: 1.05, ao: { radius: .02, intensity: 1 }, dof: { focus: .27, aperture: .006, maxBlur: 12 }, grade: ctx.grade.warm, vignette: .34 },
       update(t) { applyCam(cA1, pA1(t), t, .0012); updDesk(t); this.post.dof.focus = cA1.position.distanceTo(key.knob); } });
 

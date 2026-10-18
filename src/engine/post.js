@@ -10,6 +10,8 @@ import * as THREE from 'three';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 
 const VS = 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
+// NaN / Inf 当 0：比较运算遇到 NaN 一律为假，所以这个判断在开启快速数学的驱动上也成立
+const OK = 'vec3 ok(vec3 c){return all(lessThan(abs(c),vec3(6e4)))?c:vec3(0.);}\n';
 const quadGeo = new THREE.PlaneGeometry(2, 2);
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 function quad(fs, uniforms, defines = {}) {
@@ -19,7 +21,7 @@ function quad(fs, uniforms, defines = {}) {
 }
 // three 以 GLSL 3.00 es 编译 ShaderMaterial，并提供 gl_FragColor / texture2D 兼容宏，因此 texture()/textureLod() 也可直接用
 const DOWN_FS = `uniform sampler2D tSrc;uniform vec2 uTexel;uniform float uThresh,uKnee;uniform int uFirst;varying vec2 vUv;
-vec3 S(float x,float y){return texture2D(tSrc,vUv+vec2(x,y)*uTexel).rgb;}
+${OK}vec3 S(float x,float y){return ok(texture2D(tSrc,vUv+vec2(x,y)*uTexel).rgb);}
 float lum(vec3 c){return dot(c,vec3(.2126,.7152,.0722));}
 vec3 karis(vec3 c){return c/(1.+lum(c));}
 void main(){
@@ -43,19 +45,19 @@ void main(){vec3 up=(L(-1.,1.)+L(1.,1.)+L(-1.,-1.)+L(1.,-1.))*.0625+(L(0.,1.)+L(
 // 单通道散景景深（Dennis Gustafsson 方法），CoC 以像素计
 const DOF_FS = `#include <packing>
 uniform sampler2D tColor,tDepth;uniform vec2 uRes;uniform float uFocus,uAperture,uMaxBlur,cameraNear,cameraFar;varying vec2 vUv;
-float vz(vec2 uv){float d=texture2D(tDepth,uv).x;return -perspectiveDepthToViewZ(d,cameraNear,cameraFar);}
+${OK}float vz(vec2 uv){float d=texture2D(tDepth,uv).x;return -perspectiveDepthToViewZ(d,cameraNear,cameraFar);}
 float coc(float z){return clamp(uAperture*abs(1./uFocus-1./z)*uRes.y,0.,uMaxBlur);}
 void main(){
- vec2 px=1./uRes;float cz=vz(vUv);float cs=coc(cz);vec3 col=texture2D(tColor,vUv).rgb;float tot=1.;float rad=.5;float ang=0.;
+ vec2 px=1./uRes;float cz=vz(vUv);float cs=coc(cz);vec3 col=ok(texture2D(tColor,vUv).rgb);float tot=1.;float rad=.5;float ang=0.;
  for(int i=0;i<160;i++){ if(rad>=uMaxBlur) break;
-  vec2 tc=vUv+vec2(cos(ang),sin(ang))*px*rad;vec3 sc=texture2D(tColor,tc).rgb;float sz=vz(tc);float ssz=coc(sz);
+  vec2 tc=vUv+vec2(cos(ang),sin(ang))*px*rad;vec3 sc=ok(texture2D(tColor,tc).rgb);float sz=vz(tc);float ssz=coc(sz);
   if(sz>cz) ssz=clamp(ssz,0.,cs*2.);
   float m=smoothstep(rad-.5,rad+.5,ssz);col+=mix(col/tot,sc,m);tot+=1.;rad+=.5/rad*1.2;ang+=2.39996323;}
  gl_FragColor=vec4(col/tot,1.);}`;
 // AgX（Troy Sobotka / Benjamin Wrensch 的近似）+ 调色
 const FINAL_FS = `uniform sampler2D tScene,tBloom;uniform float uExpo,uBloom,uVig,uGrain,uCA,uTime,uSat,uContrast,uFlicker,uFade,uWeave,uTone;uniform int uMode;
 uniform vec3 uLift,uGamma,uGain,uTint;uniform vec2 uRes;varying vec2 vUv;
-vec3 agxC(vec3 x){vec3 x2=x*x;vec3 x4=x2*x2;return 15.5*x4*x2-40.14*x4*x+31.96*x4-6.868*x2*x+.4298*x2+.1191*x-.00232;}
+${OK}vec3 agxC(vec3 x){vec3 x2=x*x;vec3 x4=x2*x2;return 15.5*x4*x2-40.14*x4*x+31.96*x4-6.868*x2*x+.4298*x2+.1191*x-.00232;}
 vec3 agx(vec3 v){const mat3 M=mat3(.842479062253094,.0423282422610123,.0423756549057051,.0784335999999992,.878468636469772,.0784336,.0792237451477643,.0791661274605434,.879142973793104);
  const float lo=-12.47393,hi=4.026069;v=M*v;v=clamp(log2(max(v,vec3(1e-10))),lo,hi);v=(v-lo)/(hi-lo);return agxC(v);}
 vec3 agxEotf(vec3 v){const mat3 Mi=mat3(1.19687900512017,-.0528968517574562,-.0529716355144438,-.0980208811401368,1.15190312990417,-.0980434501171241,-.0990297440797205,-.0989611768448433,1.15107367264116);
@@ -67,8 +69,8 @@ void main(){
  if(uWeave>0.){float fr=floor(uTime*24.);uv+=(vec2(h12(vec2(fr,1.)),h12(vec2(fr,7.)))-.5)*uWeave/uRes*2.;}
  vec2 c=uv-.5;float d=length(c*vec2(uRes.x/uRes.y,1.))/1.0;
  vec2 off=c*uCA*(d*d)*2.;
- vec3 col=vec3(texture2D(tScene,uv+off).r,texture2D(tScene,uv).g,texture2D(tScene,uv-off).b);
- col+=texture2D(tBloom,uv).rgb*uBloom;
+ vec3 col=ok(vec3(texture2D(tScene,uv+off).r,texture2D(tScene,uv).g,texture2D(tScene,uv-off).b));
+ col+=ok(texture2D(tBloom,uv).rgb)*uBloom;
  col*=uExpo*uTint;
  col=uTone>.5?agxEotf(agx(col)):clamp(col,0.,1.);
  // 调色（显示线性空间）：lift / gamma / gain，对比度，饱和度
@@ -103,6 +105,7 @@ void main(){
  col*=1.-uFade;
  gl_FragColor=vec4(col,1.);}`;
 
+const isSeeThrough = m => Array.isArray(m) ? m.every(isSeeThrough) : !!m && (m.transparent || m.transmission > 0 || m.depthWrite === false);
 export const TRANSITIONS = { cut: 0, dissolve: 1, dip: 2, blur: 3, wipe: 4, luma: 5, flash: 6 };
 
 export const DEFAULT_POST = {
@@ -165,7 +168,12 @@ export class Pipeline {
       if (!this.gtao) { this.gtao = new GTAOPass(scene, camera, this.w, this.h); this.gtao.output = GTAOPass.OUTPUT.Default; }
       const g = this.gtao; g.scene = scene; g.camera = camera; g.blendIntensity = P.ao.intensity;
       g.updateGtaoMaterial({ radius: P.ao.radius, distanceExponent: P.ao.distanceExponent, thickness: P.ao.thickness, scale: P.ao.scale, samples: P.ao.samples });
+      // GTAO 的法线 / 深度缓冲会把所有网格都当成实体；透明、透射（玻璃、电磁波前）和不写深度的网格不该产生遮蔽，
+      // 否则扩张的波前球壳经过镜头时会在桌面上投出大片「阴影」（第 00 章 7.2 s 的单帧暗块）
+      const hidden = [];
+      scene.traverse(o => { if (o.isMesh && o.visible && isSeeThrough(o.material)) { o.visible = false; hidden.push(o); } });
       g.render(r, this.hdrB, cur); cur = this.hdrB;
+      for (const o of hidden) o.visible = true;
     }
     if (P.dof) {
       const u = this.dof.u; u.tColor.value = cur.texture; u.tDepth.value = this.hdr.depthTexture; u.uRes.value.set(this.w, this.h);

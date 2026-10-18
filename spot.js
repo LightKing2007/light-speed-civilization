@@ -1,3 +1,4 @@
+// 【旧版 v1，已停用】v2 请用 tools/spot.mjs。见 README「旧版文件」。
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
