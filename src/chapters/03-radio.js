@@ -272,10 +272,11 @@ export default {
     ctx.callout({ shot: shD, at: earC, title: '电话听筒', sub: '信号极弱，只能靠耳朵分辨', t0: 24.4, t1: 27.6, side: 'right', dx: 120, dy: 90 });
     ctx.callout({ shot: shD, at: tubeW, title: '金属屑检波器', sub: '电波一到，管里的金属屑就导通', t0: 24.9, t1: 27.6, side: 'left', dx: 110, dy: -110 });
     // 「S」读数：三点随三声「嗒」出现（跨 D1 / D2）
-    ctx.draw2d({ t0: 24.3, t1: 30.3, draw(g2, t) {
+    ctx.draw2d({ t0: 24.95, t1: 30.3, draw(g2, t) {   // 第一声「嗒」（25.3）前一刻出现，不留空面板
       const x = 1508, y = 128;
       g2.fillStyle = 'rgba(8,10,12,.42)'; g2.fillRect(x - 18, y - 30, 330, 150); ink.corners(g2, x - 18, y - 30, 330, 150, 12, ink.faint, 1);
-      ink.text(g2, '耳机里的信号', x, y - 6, { font: ink.mono(12), color: ink.dim });
+      ink.text(g2, '耳机里的信号', x, y - 6, { font: ink.mono(14), color: ink.dim });
+      g2.strokeStyle = ink.faint; g2.lineWidth = 1.2; for (let i = 0; i < 3; i++) { g2.beginPath(); g2.arc(x + 14 + i * 42, y + 48, 8, 0, 7); g2.stroke(); }   // 等待中的三个空位
       CLICKS.forEach((c, i) => { const a = ss(c - .01, c + .04, t); if (a <= 0) return; const fl = 1 - ss(c, c + .35, t); g2.fillStyle = fl > .02 ? `rgba(255,${Math.round(122 + 120 * (1 - fl))},${Math.round(48 + 190 * (1 - fl))},${a})` : ink.white; g2.beginPath(); g2.arc(x + 14 + i * 42, y + 48, 8 + 3 * fl, 0, 7); g2.fill(); });
       const s = ss(26.15, 26.5, t); if (s > 0) { g2.save(); g2.globalAlpha *= s; ink.text(g2, '=', x + 148, y + 60, { font: ink.mono(30), color: ink.dim }); ink.text(g2, 'S', x + 190, y + 76, { font: ink.cond(78, 600), color: ink.accent }); ink.text(g2, '摩尔斯「S」= 三短', x, y + 104, { font: ink.sans(15), color: ink.white }); g2.restore(); }
     } });
