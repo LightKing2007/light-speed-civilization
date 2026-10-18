@@ -152,12 +152,12 @@ export async function buildLab(KIT) {
   s.add(wire([cells[0].zinc.clone().add(V(.005, .01, 0)), V(-.8, TOP + .1, -.5), V(-.7, TOP + .002, -.6), V(.1, TOP + .002, -.6), V(.27, TOP + .004, -.52), ppW[0]], blackSilk, .0018, 120).mesh);
 
   /* ---------------- 布景 ---------------- */
-  const prop = async (id, size, p, ry = 0) => { try { const m = await KIT.model(`assets/models/polyhaven/${id}/${id}_1k.gltf`, { size }); m.position.set(...p); m.rotation.y = ry; s.add(m); return m; } catch (e) { console.warn('[02] model', id, e); return null; } };
+  const prop = async (id, size, p, ry = 0, file = `${id}_1k.gltf`) => { try { const m = await KIT.model(`assets/models/polyhaven/${id}/${file}`, { size }); m.position.set(...p); m.rotation.y = ry; s.add(m); return m; } catch (e) { console.warn('[02] model', id, e); return null; } };
   const lamps = await Promise.all([prop('vintage_oil_lamp', .48, [-1.22, TOP, -.48], .4), prop('vintage_oil_lamp', .48, [1.24, TOP, -.5], -.2)]);
   await Promise.all([
     prop('vintage_cabinet_01', 2.3, [2.6, 0, -1.42], 0),
     prop('standing_chalkboard_01', 1.6, [-2.5, 0, -1.2], .35),
-    prop('woodenchair_01', .95, [1.85, 0, .55], -2.2),
+    prop('woodenchair_01', .95, [1.85, 0, .55], -2.2, 'WoodenChair_01_1k.gltf'),   // 文件名大小写与原包一致（Linux 区分大小写）
     prop('chemistry_set', .42, [3.0, 0, -.6], -1.2),
   ]);
   const flames = [];

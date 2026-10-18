@@ -13,7 +13,8 @@
     "encode": "node tools/encode.mjs",
     "test": "node --test test/*.test.mjs",
     "check:play": "node tools/playcheck.mjs",
-    "check:export": "node tools/faultcheck.mjs"
+    "check:export": "node tools/faultcheck.mjs",
+    "perf": "node tools/perf.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

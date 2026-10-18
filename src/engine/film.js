@@ -106,8 +106,9 @@ function findShotAt(ch, t) { for (const s of ch.shots) if (s.offline && t >= s.t
 
 /* ---------- 每帧 ---------- */
 const slotShot = [null, null];
+let FRAMES = 0;          // 已渲染的帧数（tools/perf.mjs 用来检查暂停时是否还在渲染）
 function renderAt(Tg, dt, live) {
-  FRAME_ERR.length = 0;
+  FRAME_ERR.length = 0; FRAMES++;
   // 活动镜头
   const act = []; for (const s of SHOTS) { if (s.gStart > Tg) break; if (Tg < s.gEnd) act.push(s); }
   let base = null, top = null, f = 0;
@@ -196,7 +197,9 @@ export async function boot(chapters) {
     TOTAL, FPS, ready: true, mode: OPTS.strict ? 'strict' : 'preview',
     chapters: CH.map(c => ({ id: c.id, title: c.title, start: c.start, dur: c.dur, status: c.status, error: c.error || null, assets: [...c.assets].sort(), renders: renderDeps(c) })),
     cues: CUES.map(c => [c[0], c[1], c[2]]), music: CH.map(c => ({ start: c.start, dur: c.dur, music: c.music || null })),
-    failed: A.progress.failed, errors: ERRORS,
+    failed: A.progress.failed, errors: ERRORS, bootMs: Math.round(performance.now()),
+    /** 性能计数（tools/perf.mjs）：帧数、GPU 资源数量、资源加载统计、JS 堆 */
+    perf: () => ({ frames: FRAMES, memory: { ...renderer.info.memory }, programs: (renderer.info.programs || []).length, assets: { ...A.stats, total: A.progress.total, failed: A.progress.failed.length }, heap: performance.memory ? performance.memory.usedJSHeapSize : null }),
   };
   /** 逐帧导出：按给定的影片时间渲染（与电脑速度无关）。正式导出模式下本帧出错就抛出 */
   window.renderFrame = t => {

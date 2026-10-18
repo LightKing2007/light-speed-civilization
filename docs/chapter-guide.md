@@ -35,6 +35,8 @@ export default {
 
 占位文件里已经有 `id/slug/title/dur/card/stamps/caps`，**保留这些字段**，把 `build` 换成你的实现，并补上 `credits`。
 
+**`status` 字段**：占位文件是 `status: 'placeholder'`（画面右上角带「占位」标记，正式导出默认拒绝）。实现完成、覆盖全部字幕时段后改成 `'implemented'`，并同步更新 `docs/progress.md` 的总表与本章记录（`npm test` 会检查两者一致）。`'reviewed'` / `'deliverable'` 只在按 progress.md 的清单验收后再改。
+
 ## 3. ctx 接口
 
 | 接口 | 说明 |
@@ -129,7 +131,9 @@ node tools/spot.mjs --only 05 --times 12.3,12.6,13 --debug  # 指定时间点；
 node tools/spot.mjs --only 04,05 --times 35.5,36,36.5     # 同时载入相邻章节，检查衔接（时间是两章拼接后的全局秒）
 ```
 - 用 Read 工具看截图（先看 sheet，再看关键帧原图）。逐条对照：写实度、细节、构图与安全区、字幕与画面是否同步、标注是否清楚不拥挤、辉光是否克制、有无穿模/闪烁/锯齿/黑屏、转场是否自然。
-- 控制台报错必须为零（spot 会打印 CONSOLE）。资源 404 要修。
+- 控制台报错必须为零（spot 会打印 CONSOLE，有 ERRORS / FAILED ASSETS 时退出码为 1）。资源 404 要修。
+- **素材加载失败不能只靠 `.catch()` 吞掉**：预览里可以降级显示，但正式导出（`npm run render`）会因为素材失败而中止。模型文件名注意大小写（Linux 区分大小写）。
+- 用 `npm run render -- --only NN` 正式导出本章短片，确认能通过（镜头 `update` 或 `draw2d` 抛出的错误会让导出停在出错的那一帧并报出镜头名与时间）。
 - 单帧渲染保持流畅：避免上百万三角形、每帧重建几何体、每帧 new 大量对象；粒子 < 20 万。
 - 所有动画是 t 的纯函数：不用 `Math.random()`/`Date.now()` 驱动画面（build 时可用 `rng(seed)`）。
 - 至少迭代 3 轮「渲染 → 看图 → 改」，直到你自己觉得能拿去给挑剔的导演看。
