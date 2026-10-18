@@ -46,7 +46,7 @@ export function filmProblems(film, { draft = false } = {}) {
     const url = k.replace(/^[a-z]+:/, '').replace(/\|.*$/, ''), who = (film.chapters || []).filter(c => (c.assets || []).includes(url)).map(c => c.id);
     out.push(`素材加载失败：${url}${who.length ? '（第 ' + who.join('、') + ' 章）' : ''}`);
   }
-  for (const e of film.errors || []) if (e.kind !== 'build') out.push(`第 ${e.chapter} 章 ${e.kind === 'shot' ? '镜头 ' + e.shot : 'HUD'} 出错（构建时）：${e.message}`);
+  for (const e of film.errors || []) if (e.kind !== 'build') out.push(`第 ${e.chapter} 章 ${e.kind === 'shot' ? '镜头 ' + e.shot : e.kind === 'clip' ? '引用镜头 ' + e.shot : 'HUD'} 出错（构建时）：${e.message}`);
   const ph = (film.chapters || []).filter(c => c.status === 'placeholder').map(c => c.id);
   if (ph.length && !draft) out.push(`占位章节尚未实现：${ph.join('、')}（只想看整片草稿请加 --draft，画面会带「占位」标记）`);
   return out;

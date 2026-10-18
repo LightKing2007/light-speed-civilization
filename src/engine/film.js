@@ -187,6 +187,8 @@ export async function boot(chapters) {
     catch (e) { report({ kind: 'build', chapter: ch.id, message: errMsg(e) }, false); placeholder(ch, e); }
   }
   A.setOwner(null);
+  // 引用其他章画面（ctx.clip）时，被引用的章必须也载入了，否则那一段会是黑场 —— 明确报错，不静默
+  for (const c of CH) for (const s of c.shots) if (s.clip && !CH.some(x => x.id === s.clip.chapter)) report({ kind: 'clip', chapter: c.id, shot: s.name, message: `引用的第 ${s.clip.chapter} 章没有载入（预览时请一起 --only ${s.clip.chapter}）` }, false);
   layout();
   CUES.forEach(c => c[0] += c[3].start); CUES.sort((a, b) => a[0] - b[0]);
   // 预编译着色器
