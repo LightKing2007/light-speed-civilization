@@ -1,0 +1,32 @@
+# macOS 元数据
+.DS_Store
+._*
+
+# 依赖与项目内缓存（包含 _tools 下的依赖）
+node_modules/
+.npm-cache/
+__pycache__/
+*.py[cod]
+
+# 可重新生成的构建产物与资源索引
+/dist/
+/assets/index.json
+
+# 截图、逐帧渲染和导出结果；保留 docs/preview 中的精选预览
+/_shots/
+/_render/
+/frames/
+/audio.wav
+/光速文明.mp4
+/test.html
+
+# 本地日志、临时文件与 Git 清理备份
+*.log
+*.tmp
+/.git-cleanup-backup/
+
+# 本地密钥与环境配置；允许提交示例配置
+.env
+.env.*
+!.env.example
+!.env.sample

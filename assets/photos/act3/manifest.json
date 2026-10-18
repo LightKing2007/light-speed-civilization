@@ -1,0 +1,92 @@
+[
+ {
+  "file": "assets/photos/act3/arpanet_logical_map_1977_03.png",
+  "title": "Arpanet logical map, march 1977.png",
+  "desc": "ARPANET logical map circa 1977",
+  "license": "Public domain",
+  "author": "ARPANET",
+  "source_url": "https://commons.wikimedia.org/wiki/File:Arpanet_logical_map,_march_1977.png",
+  "width": 1000,
+  "height": 716
+ },
+ {
+  "file": "assets/photos/act3/arpanet_sketch_1969_12.png",
+  "title": "A sketch of the ARPANET in December 1969.png",
+  "desc": "A sketch of the ARPANET in December 1969. The nodes at UCLA and the Stanford Research Institute (SRI) are among those depicted.",
+  "license": "Public domain",
+  "author": "DARPA",
+  "source_url": "https://commons.wikimedia.org/wiki/File:A_sketch_of_the_ARPANET_in_December_1969.png",
+  "width": 2057,
+  "height": 3003
+ },
+ {
+  "file": "assets/photos/act3/bob_kahn_2010_itu.jpg",
+  "title": "Robert E. Kahn 1973-07.jpg",
+  "desc": "Mr Robert Kahn, Laureate of the WTISD 2010, co-inventor of the Internet, speaks at the ITU WTISD 2010 celebration press conference, World Expo 2010, Shangai",
+  "license": "CC BY 2.0",
+  "author": "ITU Pictures",
+  "source_url": "https://commons.wikimedia.org/wiki/File:Robert_E._Kahn_1973-07.jpg",
+  "width": 3184,
+  "height": 2120
+ },
+ {
+  "file": "assets/photos/act3/boelter3420_sds_sigma7.jpg",
+  "title": "The SDS Sigma-7 The First Computer to be Connected to the Internet (6294434636).jpg",
+  "desc": "This is the very first computer to ever be connected to the Internet. Of course, back in 1969 it wasn't called the Internet, but the ARPANET, and really there was no ARPANET to connect to - this computer and its accompanying Interface Message Processor formed the first node on the ARPANET, and the c",
+  "license": "CC BY-SA 2.0",
+  "author": "Andrew \"FastLizard4\" Adams from United States",
+  "source_url": "https://commons.wikimedia.org/wiki/File:The_SDS_Sigma-7_The_First_Computer_to_be_Connected_to_the_Internet_(6294434636).jpg",
+  "width": 3840,
+  "height": 2571
+ },
+ {
+  "file": "assets/photos/act3/cisco_ags_router_1986.jpg",
+  "title": "Cisco Advanced Gateway Server (AGS) router (1986) - Computer History Museum.jpg",
+  "desc": "Cisco's Advanced Gateway Server (AGS) router.",
+  "license": "CC BY 2.0",
+  "author": "Michael Hicks from Saint Paul, MN, USA",
+  "source_url": "https://commons.wikimedia.org/wiki/File:Cisco_Advanced_Gateway_Server_(AGS)_router_(1986)_-_Computer_History_Museum.jpg",
+  "width": 3840,
+  "height": 2560
+ },
+ {
+  "file": "assets/photos/act3/imp_bbn_ddp516_jurvetson.jpg",
+  "title": "ARPANET first router.jpg",
+  "desc": "For the APRANET in 1969, the BBN Interface Message Processor (IMP) did the packet routing. (It's another cool artifact of history in the back room, awaiting installation in the new Computer History Museum exhibition hall.) The Honeywell 516 minicomputer inside had only 6,000 words of software (in 12",
+  "license": "CC BY 2.0",
+  "author": "Steve Jurvetson from Menlo Park, USA",
+  "source_url": "https://commons.wikimedia.org/wiki/File:ARPANET_first_router.jpg",
+  "width": 3542,
+  "height": 5400
+ },
+ {
+  "file": "assets/photos/act3/imp_label_closeup_doctorow.jpg",
+  "title": "IMP - the first Internet node 2, Computer History Museum, Mountain View, California, USA (49501288803).jpg",
+  "desc": "IMP - the first Internet node 2, Computer History Museum, Mountain View, California, USA",
+  "license": "CC BY-SA 2.0",
+  "author": "Cory Doctorow from Beautiful Downtown Burbank, USA",
+  "source_url": "https://commons.wikimedia.org/wiki/File:IMP_-_the_first_Internet_node_2,_Computer_History_Museum,_Mountain_View,_California,_USA_(49501288803).jpg",
+  "width": 3840,
+  "height": 2880
+ },
+ {
+  "file": "assets/photos/act3/imp_log_1969_10_29.jpg",
+  "title": "The IMP Log The Very First Message Sent on the Internet (6293913865).jpg",
+  "desc": "Today, 29 October 2011, is the 42nd birthday of the Internet. This page from the IMP (Interface Message Processor) log from 29 October 1969 records the date and time of the very first message ever sent on the Internet, sent on 29 October 1969 at 22:30 Pacific Time from Boelter Hall 3420 at UCLA (thi",
+  "license": "CC BY-SA 2.0",
+  "author": "Andrew \"FastLizard4\" Adams from United States",
+  "source_url": "https://commons.wikimedia.org/wiki/File:The_IMP_Log_The_Very_First_Message_Sent_on_the_Internet_(6293913865).jpg",
+  "width": 3840,
+  "height": 2571
+ },
+ {
+  "file": "assets/photos/act3/vint_cerf_2010.jpg",
+  "title": "Vint Cerf - 2010.jpg",
+  "desc": "Dr. Vint Cerf",
+  "license": "CC BY 3.0",
+  "author": "Вени Марковски Veni Markovski",
+  "source_url": "https://commons.wikimedia.org/wiki/File:Vint_Cerf_-_2010.jpg",
+  "width": 2790,
+  "height": 2791
+ }
+]

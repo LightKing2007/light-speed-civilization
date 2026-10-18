@@ -1,0 +1,36 @@
+{
+  "downloaded": "JSON (OMM) files: 2026-10-17 ~18:01 UTC (= 2026-10-18 02:01 China Standard Time, the machine's local zone; filenames use the local date). TLE file: 2026-10-18 00:08 UTC.",
+  "active_total": 16754,
+  "starlink_group_total": 11124,
+  "starlink_named_in_active": 11151,
+  "by_group_in_active": {
+    "other": 4246,
+    "gps": 40,
+    "iss": 9,
+    "oneweb": 651,
+    "starlink": 11151,
+    "qianfan": 257,
+    "kuiper": 391,
+    "guowang": 9
+  },
+  "by_orbit_regime": {
+    "LEO": 15940,
+    "MEO": 190,
+    "HEO": 45,
+    "GEO": 579
+  },
+  "norad_ids_over_99999": 827,
+  "max_norad_id": 101074,
+  "epoch_range_utc": [
+    "2026-09-19T03:55:40.421856",
+    "2026-10-18T00:31:16.517280"
+  ],
+  "notes": "Regime: LEO a-Re<2000 km; GEO a within 500 km of 42164 km and e<0.05; HEO e>0.25; else MEO. 'starlink_group_total' = objects in CelesTrak GROUP=starlink; 'starlink_named_in_active' = objects in GROUP=active whose name starts with STARLINK (slightly larger because the starlink group file was a separate request). XMM-NEWTON and CXO (Chandra) carry epochs a few hours after the download time; normal for these highly elliptical orbits. Source: CelesTrak (Dr. T.S. Kelso), https://celestrak.org/NORAD/elements/ ; data originate from the US Space Force 18th/19th Space Defense Squadron via space-track.org.",
+  "official_tle_file": {
+    "file": "gp_active_2026-10-18T0008Z.tle",
+    "downloaded_utc": "2026-10-18T00:08Z",
+    "objects": 15928,
+    "starlink_objects": 10652,
+    "note": "Downloaded ~6 h after the JSON, so it is a slightly newer snapshot. It omits objects whose NORAD catalog number exceeds 99999 (cannot be written in classic TLE); those are only in the JSON files."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "lightspeed-civilization",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "光速文明 — 写实风格科普影片（three.js 实时渲染 + 逐帧导出）",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "serve": "python3 -m http.server 8173",
+    "spot": "node tools/spot.mjs",
+    "render": "node tools/render.mjs",
+    "audio": "node tools/audio.mjs",
+    "encode": "node tools/encode.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "ffmpeg-static": "^5.3.0",
+    "playwright-core": "^1.56.1",
+    "satellite.js": "^7.1.0",
+    "three": "^0.186.1"
+  }
+}

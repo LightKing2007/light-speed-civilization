@@ -1,0 +1,219 @@
+/* 影片核心：章节 → 镜头时间线、渲染循环、转场合成、HUD、音频调度、实时播放器与逐帧导出接口。
+
+   时间模型
+   - 每章有 dur（秒），章与章首尾相接：START[i] = 前面各章时长之和。
+   - 章内由镜头（shot）组成，shot.t0 为章内开始时间；镜头的结束时间自动推导为「下一个镜头开始 + 其转场时长」，
+     因此镜头总是首尾相接，转场期间两个镜头同时渲染再合成。
+   - 第一个镜头的 in 转场会和上一章最后一个镜头重叠（上一章最后一个镜头会继续被调用 update，t 可能略大于 dur）。
+   - 所有 update(t) 必须是 t 的纯函数（不要依赖上一帧状态，不要用 Math.random）。 */
+import * as THREE from 'three';
+import { Pipeline, mergePost, GRADES, TRANSITIONS } from './post.js';
+import { HUD, W, H } from './hud.js';
+import * as A from './assets.js';
+import { AU } from './audio.js';
+import { clamp, ss, win, rng } from './util.js';
+import * as KIT from './kit.js';
+import { makeEarth } from './earth.js';
+
+const $ = id => document.getElementById(id);
+const HASH = location.hash.replace(/^#/, '');
+const Q = new URLSearchParams(HASH.replace(/^render&?/, '').replace(/^render$/, ''));
+export const RENDER = /^render/.test(HASH);
+export const FPS = 30;
+export const OPTS = { only: Q.get('only'), scale: +(Q.get('scale') || (RENDER ? 1.5 : 1)), debug: Q.has('debug'), from: Q.get('from') };
+
+let renderer, pipe, hud;
+const CH = [];          // 章节
+const SHOTS = [];       // 所有镜头（全局排序）
+let STARTS = [], TOTAL = 0;
+const CUES = [];        // [globalT, name, args]
+let T = 0, prevT = 0, playing = false, started = false, lastHudSet = new Set();
+
+export function getT() { return T; }
+
+/* ---------- 章节构建上下文 ---------- */
+function makeCtx(ch) {
+  const reg = hud.registry(ch);
+  ch.shots = []; ch.caps = ch.caps || []; ch.stats = ch.stats || []; ch.lowers = ch.lowers || []; ch.doms = [];
+  const ctx = {
+    THREE, A, KIT, renderer, chapter: ch, rng,
+    /** 新建镜头：{ t0, in:{type,dur,params}, scene, camera, post, update(t, st), name } */
+    shot(o) {
+      const s = { ch, name: o.name || `${ch.id}.${ch.shots.length + 1}`, t0: o.t0 || 0, in: o.in || null, scene: o.scene, camera: o.camera, update: o.update || (() => { }), post: mergePost(o.post), t1: o.t1, clip: o.clip || null, offline: !!o.offline };
+      if (s.in && s.in.type && !(s.in.type in TRANSITIONS)) console.warn('unknown transition', s.in.type);
+      if (s.camera && s.camera.isPerspectiveCamera) { s.camera.aspect = W / H; s.camera.updateProjectionMatrix(); }
+      ch.shots.push(s); return s;
+    },
+    /** 引用其他章的画面（尾声蒙太奇用）：{ chapter:'02', at: 41.0, t0, rate, in } */
+    clip(o) { return ctx.shot({ ...o, clip: { chapter: o.chapter, at: o.at, rate: o.rate ?? 1 } }); },
+    callout: reg.callout, bracket: reg.bracket, measure: reg.measure, readout: reg.readout, draw2d: reg.draw2d,
+    caption(t0, t1, text) { ch.caps.push([t0, t1, text]); },
+    stat(o) { ch.stats.push(o); return o; },
+    lower(o) { ch.lowers.push(o); return o; },
+    dom(id, t0, t1, fade = .8) { ch.doms.push({ id, t0, t1, fade }); },
+    cue(t, name, ...args) { CUES.push([t, name, args, ch]); },
+    grade: GRADES,
+    earth: o => makeEarth(ctx, o),
+  };
+  return ctx;
+}
+
+function placeholder(ch, err) {
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0b0b);
+  const camera = new THREE.PerspectiveCamera(40, W / H, .1, 100);
+  ch.shots = [{ ch, name: ch.id + '.ERR', t0: 0, in: { type: 'dissolve', dur: .5 }, scene, camera, update() { }, post: mergePost({}) }];
+  ch.caps = [[0, ch.dur, `【第 ${ch.id} 章构建失败】${String(err && err.message || err).slice(0, 80)}`]];
+}
+
+/* ---------- 时间线 ---------- */
+function layout() {
+  STARTS = []; let acc = 0; for (const c of CH) { STARTS.push(acc); c.start = acc; acc += c.dur; } TOTAL = acc;
+  SHOTS.length = 0;
+  for (const c of CH) for (const s of c.shots) { s.gStart = c.start + s.t0; if (!s.offline) SHOTS.push(s); }
+  SHOTS.sort((a, b) => a.gStart - b.gStart);
+  for (let i = 0; i < SHOTS.length; i++) {
+    const s = SHOTS[i], n = SHOTS[i + 1];
+    s.gEnd = n ? n.gStart + (n.in && n.in.type !== 'cut' ? (n.in.dur || 0) : 0) : TOTAL + 1;
+    if (s.t1 != null && n) s.gEnd = Math.max(s.gEnd, s.ch.start + s.t1);
+  }
+}
+function locate(t) { for (let i = CH.length - 1; i >= 0; i--) if (t >= STARTS[i]) return i; return 0; }
+/** 引用：先在「仅供引用」的离线镜头里找（t 落在其 t0..t1），再在正片镜头里找 */
+function findShotAt(ch, t) { for (const s of ch.shots) if (s.offline && t >= s.t0 && t < (s.t1 ?? s.t0 + 30)) return s; let best = null; for (const s of ch.shots) if (!s.offline && s.t0 <= t) best = s; return best || ch.shots[0]; }
+
+/* ---------- 每帧 ---------- */
+const slotShot = [null, null];
+function renderAt(Tg, dt, live) {
+  // 活动镜头
+  const act = []; for (const s of SHOTS) { if (s.gStart > Tg) break; if (Tg < s.gEnd) act.push(s); }
+  let base = null, top = null, f = 0;
+  for (const s of act) {
+    const d = s.in && s.in.type !== 'cut' ? (s.in.dur || 0) : 0;
+    const ff = d > 0 ? clamp((Tg - s.gStart) / d) : 1;
+    if (ff >= 1 || !base) { base = s; top = null; f = 0; } else { top = s; f = ff; }
+  }
+  const vis = new Map(); if (base) vis.set(base, top ? 1 - f : 1); if (top) vis.set(top, f);
+  const texs = [];
+  [base, top].forEach((s, k) => {
+    if (!s) return;
+    let src = s, lt = Tg - s.ch.start;
+    if (s.clip) { // 引用其他章
+      const c2 = CH.find(c => c.id === s.clip.chapter); if (c2) { const t2 = s.clip.at + (lt - s.t0) * s.clip.rate; src = findShotAt(c2, t2); lt = t2; } else src = null;
+    }
+    if (!src || !src.scene) { texs.push(null); return; }
+    try { src.update(lt, lt - src.t0, dt); } catch (e) { if (!src._err) { src._err = 1; console.error('[shot update]', src.name, e); } }
+    const P = { ...(s.clip ? src.post : s.post) };
+    texs.push(pipe.renderShot(src.scene, src.camera, P, k, Tg));
+  });
+  const ty = top ? TRANSITIONS[top.in.type] ?? 1 : 1;
+  const fade = (RENDER || started) && !OPTS.only ? Math.max(1 - ss(0, .9, Tg), ss(TOTAL - 1.2, TOTAL - .05, Tg)) : 0;
+  if (texs[0]) pipe.composite(texs[0], texs[1] || null, ty, top ? (top.in.ease === 'lin' ? f : f * f * (3 - 2 * f)) : 0, top && top.in.params, fade);
+  else { renderer.setRenderTarget(null); renderer.setClearColor(0, 1); renderer.clear(); }
+
+  // HUD
+  const ci = locate(Tg), cur = CH[ci], list = [], seen = new Set();
+  for (const s of [base, top]) {
+    if (!s || seen.has(s.ch) || s.clip) continue; seen.add(s.ch);
+    const ch = s.ch, chW = [...vis.entries()].filter(([x]) => x.ch === ch).reduce((a, [, w]) => a + w, 0);
+    list.push({ ch, t: Tg - ch.start, vis: sh => sh ? (vis.get(sh) || 0) : chW });
+  }
+  if (!seen.has(cur)) list.push({ ch: cur, t: Tg - cur.start, vis: () => 1 });
+  for (const ch of lastHudSet) if (!list.some(l => l.ch === ch)) hud.hideChapter(ch);
+  lastHudSet = new Set(list.map(l => l.ch));
+  hud.update(cur, Tg - cur.start, list, live);
+  // 章节 DOM 块（片名 / 片尾）
+  for (const id of DOM_IDS) { let a = 0; for (const d of cur.doms) if (d.id === id) a = Math.max(a, win(Tg - cur.start, d.t0, d.t1, d.fade)); const el = $(id); if (el) el.style.opacity = a.toFixed(3); }
+  if (OPTS.debug) $('dbg').textContent = `${Tg.toFixed(2)}s · ch ${cur.id} t=${(Tg - cur.start).toFixed(2)} · ${base ? base.name : '-'}${top ? ' → ' + top.name + ' ' + f.toFixed(2) : ''}`;
+}
+const DOM_IDS = ['title', 'endcard'];
+
+/* ---------- 尺寸 ---------- */
+function resize() {
+  const fw = RENDER ? W : innerWidth, fh = RENDER ? H : innerHeight;
+  const k = Math.min(fw / W, fh / H), w = Math.round(W * k), h = Math.round(H * k);
+  const fr = $('frame'); fr.style.width = w + 'px'; fr.style.height = h + 'px';
+  const pr = RENDER ? 1 : Math.min(devicePixelRatio || 1, 1.5);
+  renderer.setPixelRatio(1); renderer.setSize(Math.round(w * pr), Math.round(h * pr), false);
+  $('gl').style.width = w + 'px'; $('gl').style.height = h + 'px';
+  pipe.setSize(Math.round(w * pr), Math.round(h * pr), OPTS.scale);
+  hud.setScale(k, RENDER ? 1 : (devicePixelRatio || 1));
+}
+
+/* ---------- 启动 ---------- */
+export async function boot(chapters) {
+  renderer = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: RENDER });
+  renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+  A.initAssets(renderer); await A.loadIndex();
+  pipe = new Pipeline(renderer); hud = new HUD();
+  KIT.init(renderer);
+  resize(); addEventListener('resize', resize);
+  if (OPTS.debug) document.body.classList.add('debug');
+
+  const list = OPTS.only ? chapters.filter(c => OPTS.only.split(',').includes(c.id)) : chapters;
+  const lp = $('loading'); A.progress.onChange = p => { if (lp) lp.textContent = `LOADING · ${p.done}/${p.total}`; };
+  for (const def of list) {
+    const ch = { ...def }; CH.push(ch);
+    try { await def.build(makeCtx(ch)); if (!ch.shots.length) throw new Error('no shots'); }
+    catch (e) { console.error('[chapter build]', ch.id, e); placeholder(ch, e); }
+  }
+  layout();
+  CUES.forEach(c => c[0] += c[3].start); CUES.sort((a, b) => a[0] - b[0]);
+  // 预编译着色器
+  for (const s of SHOTS) if (s.scene && s.camera) { try { renderer.compile(s.scene, s.camera); } catch (e) { console.warn(e); } }
+  lp && lp.remove();
+
+  window.FILM = { TOTAL, FPS, ready: true, chapters: CH.map(c => ({ id: c.id, title: c.title, start: c.start, dur: c.dur })), cues: CUES.map(c => [c[0], c[1], c[2]]), music: CH.map(c => ({ start: c.start, dur: c.dur, music: c.music || null })), failed: A.progress.failed };
+  window.renderFrame = t => { T = t; renderAt(t, 1 / FPS, false); return true; };
+  window.AU = AU;
+  if (RENDER) { document.body.classList.add('render'); started = true; return; }
+  livePlayer();
+}
+
+/* ---------- 实时播放器 ---------- */
+function livePlayer() {
+  let soundOn = true, voiceOn = false, idle, last = performance.now(), cueI = 0;
+  const poke = () => { $('ctrl').classList.remove('hide'); clearTimeout(idle); idle = setTimeout(() => { if (playing) $('ctrl').classList.add('hide'); }, 2400); };
+  const seek = t => { T = clamp(t, 0, TOTAL - .05); prevT = T; cueI = CUES.findIndex(c => c[0] > T); if (cueI < 0) cueI = CUES.length; AU.seek(T); hush(); };
+  const go = () => {
+    AU.init(window.FILM.music); AU.setOn(soundOn);
+    $('intro').classList.add('gone'); $('replay').hidden = true; $('ctrl').style.display = '';
+    started = true; playing = true; seek(OPTS.from ? +OPTS.from : 0); AU.play(T); $('bPlay').textContent = '❚❚'; poke();
+  };
+  const finish = () => { playing = false; AU.pause(); $('bPlay').textContent = '▶'; $('replay').hidden = false; $('ctrl').classList.remove('hide'); };
+  const toggle = () => { if (!started || T >= TOTAL - .1) return go(); playing = !playing; $('bPlay').textContent = playing ? '❚❚' : '▶'; playing ? AU.play(T) : (AU.pause(), hush()); poke(); };
+  // 旁白（浏览器语音合成，仅实时播放）
+  let zh = null; const pick = () => { if (!('speechSynthesis' in window)) return; const vs = speechSynthesis.getVoices(); zh = vs.find(v => /zh[-_]CN/i.test(v.lang) && /Tingting|Xiaoxiao|Yunxi|Google/i.test(v.name)) || vs.find(v => /zh[-_]CN/i.test(v.lang)) || null; };
+  if ('speechSynthesis' in window) { pick(); speechSynthesis.onvoiceschanged = pick; }
+  const hush = () => { try { speechSynthesis.cancel(); } catch (e) { } };
+  hud.speak = txt => { if (!voiceOn || !playing || !('speechSynthesis' in window)) return; try { hush(); const u = new SpeechSynthesisUtterance(txt.replace(/[「」“”]/g, '')); u.lang = 'zh-CN'; if (zh) u.voice = zh; u.rate = 1.12; speechSynthesis.speak(u); } catch (e) { } };
+  $('bGo').onclick = go; $('replay').onclick = go; $('bPlay').onclick = toggle;
+  $('bSound').onclick = () => { soundOn = !soundOn; AU.setOn(soundOn); $('bSound').classList.toggle('off', !soundOn); };
+  $('bVoice').onclick = () => { voiceOn = !voiceOn; $('bVoice').classList.toggle('off', !voiceOn); AU.duck(voiceOn); if (!voiceOn) hush(); };
+  $('bFull').onclick = () => { const d = document; if (!d.fullscreenElement) { const p = d.documentElement.requestFullscreen && d.documentElement.requestFullscreen(); p && p.catch && p.catch(() => { }); } else d.exitFullscreen && d.exitFullscreen(); };
+  const tr = $('track'), posT = e => { const r = tr.getBoundingClientRect(); return clamp((e.clientX - r.left) / r.width) * TOTAL; };
+  let drag = false;
+  tr.addEventListener('pointerdown', e => { drag = true; tr.setPointerCapture(e.pointerId); seek(posT(e)); });
+  tr.addEventListener('pointermove', e => { if (drag) seek(posT(e)); });
+  tr.addEventListener('pointerup', () => drag = false);
+  addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'ArrowRight' && started) seek(T + 10); else if (e.key === 'ArrowLeft' && started) seek(T - 10);
+    else if (e.key === 'f' || e.key === 'F') $('bFull').onclick(); else if (e.key === 'm' || e.key === 'M') $('bSound').onclick();
+    if (started) poke();
+  });
+  addEventListener('pointermove', () => started && poke());
+  document.addEventListener('visibilitychange', () => { if (document.hidden && playing) toggle(); });
+  // 章节刻度
+  const ticks = $('ticks'); if (ticks) ticks.innerHTML = CH.map(c => `<i style="left:${(c.start / TOTAL * 100).toFixed(3)}%"></i>`).join('');
+  const loop = now => {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (playing) { T += dt; if (T >= TOTAL) { T = TOTAL - .001; finish(); } }
+    if (playing) { while (cueI < CUES.length && CUES[cueI][0] <= T) { const c = CUES[cueI++]; if (T - c[0] < .3) AU.fx(c[1], c[2]); } }
+    renderAt(started ? T : 0, dt, true);
+    if (started) { $('fill').style.width = (T / TOTAL * 100).toFixed(2) + '%'; $('tNow').textContent = `${mmss(T)} / ${mmss(TOTAL)}`; }
+    prevT = T; requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+function mmss(s) { s = Math.max(0, Math.floor(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
