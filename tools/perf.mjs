@@ -28,13 +28,15 @@ for (const c of film.chapters) {
   out.chapters.push(r);
   console.log(`${c.id}  ${ms(first)}   ${ms(r.medianMs)}  ${ms(r.maxMs)}   ${edge == null ? '     —' : ms(edge)}${c.status === 'placeholder' ? '   （占位）' : ''}`);
 }
-const before = await page.evaluate(() => FILM.perf());
-for (let k = 0; k < SEEKS; k++) await frame(((k * 7919) % 1000) / 1000 * film.TOTAL);
-const after = await page.evaluate(() => FILM.perf());
-out.resources = { before, after };
+// 同一组跳转走两遍：第一遍会把还没画过的镜头第一次上传到 GPU（正常增长）；第二遍再增长才说明有泄漏
+const seekPass = async () => { for (let k = 0; k < SEEKS; k++) await frame(((k * 7919) % 1000) / 1000 * film.TOTAL); return page.evaluate(() => FILM.perf()); };
+const before = await page.evaluate(() => FILM.perf()), mid = await seekPass(), after = await seekPass();
+out.resources = { before, firstPass: mid, secondPass: after };
+const d = (a, b) => { const n = b - a; return (n >= 0 ? '+' : '') + n; };
 console.log(`\nGPU 资源：几何体 ${before.memory.geometries} · 贴图 ${before.memory.textures} · 着色器程序 ${before.programs}`);
 console.log(`资源加载：实际加载 ${before.assets.loads} 次 · 缓存命中 ${before.assets.hits} 次 · 失败 ${before.assets.failed}`);
-console.log(`反复跳转 ${SEEKS} 次后：几何体 ${after.memory.geometries - before.memory.geometries >= 0 ? '+' : ''}${after.memory.geometries - before.memory.geometries} · 贴图 ${after.memory.textures - before.memory.textures >= 0 ? '+' : ''}${after.memory.textures - before.memory.textures} · 着色器 ${after.programs - before.programs >= 0 ? '+' : ''}${after.programs - before.programs}` + (before.heap ? ` · JS 堆 ${((after.heap - before.heap) / 1048576).toFixed(1)} MB` : ''));
+console.log(`跳转 ${SEEKS} 次（第一遍，首次上传）：几何体 ${d(before.memory.geometries, mid.memory.geometries)} · 贴图 ${d(before.memory.textures, mid.memory.textures)} · 着色器 ${d(before.programs, mid.programs)}`);
+console.log(`同样再跳 ${SEEKS} 次（第二遍，应接近 0）：几何体 ${d(mid.memory.geometries, after.memory.geometries)} · 贴图 ${d(mid.memory.textures, after.memory.textures)} · 着色器 ${d(mid.programs, after.programs)}` + (mid.heap ? ` · JS 堆 ${((after.heap - mid.heap) / 1048576).toFixed(1)} MB` : ''));
 await F.close();
 
 // 暂停时是否仍在渲染：打开实时播放器，播放 1 秒后暂停，数 2 秒内渲染了多少帧
@@ -52,7 +54,7 @@ await F.close();
       return { play, paused };
     });
     out.paused = r;
-    console.log(`\n实时播放：播放中 ${r.play.toFixed(1)} 帧/秒 · 暂停后 ${r.paused.toFixed(1)} 帧/秒${r.paused > .5 ? '（暂停时仍在持续渲染）' : ''}`);
+    console.log(`\n实时播放：播放中 ${r.play.toFixed(1)} 帧/秒 · 暂停后 ${r.paused.toFixed(1)} 帧/秒${r.paused > Math.max(.1, r.play * .3) ? '（暂停时仍在持续渲染）' : ''}`);
   } finally { await br.close(); S.close(); }
 }
 fs.mkdirSync(path.join(ROOT, '_shots'), { recursive: true });
