@@ -11,7 +11,7 @@ export function vnoise(x, y) { const xi = Math.floor(x), yi = Math.floor(y), xf 
 
 /* ================= 电磁波前：折射透明壳 + 极淡的掠射亮边 ================= */
 const RIM_VS = `varying vec3 vN,vV;varying float vY;void main(){vY=position.y;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const RIM_FS = `uniform vec3 uC;uniform float uA,uP,uCap,uBase;varying vec3 vN,vV;varying float vY;void main(){float f=1.-abs(dot(normalize(vN),normalize(vV)));float a=(pow(f,uP)+uBase)*uA;if(uCap>-1.)a*=smoothstep(uCap,uCap+(1.-uCap)*.6,vY);gl_FragColor=vec4(uC,a);}`;
+const RIM_FS = `uniform vec3 uC;uniform float uA,uP,uCap,uBase;varying vec3 vN,vV;varying float vY;void main(){float f=clamp(1.-abs(dot(normalize(vN),normalize(vV))),0.,1.);float a=(pow(f,uP)+uBase)*uA;if(uCap>-1.)a*=smoothstep(uCap,uCap+(1.-uCap)*.6,vY);gl_FragColor=vec4(uC,a);}`;
 export function makeWaves({ count = 8, color = 0xd6ecff, rim = .45, ior = 1.14, thick = .08, pow = 6, seg = 96, cap = 0, dir = null, refract = true, refMin = 0, spec = .25, env = .4, base = 0 } = {}) {
   const group = new THREE.Group(), geo = cap ? new THREE.SphereGeometry(1, seg, seg / 2, 0, Math.PI * 2, 0, cap) : new THREE.SphereGeometry(1, seg, seg / 2), shells = [];
   const q = dir ? new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir.clone().normalize()) : null;
