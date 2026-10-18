@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>光速文明</title>
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap">
@@ -89,6 +90,8 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #endcard h2{margin:0;font:900 130px/1 var(--f-serif);letter-spacing:.18em;color:#fff}
 #endcard .sub{font:400 30px/1.6 var(--f-sans);letter-spacing:.06em;color:var(--ink)}
 #endcard .src{max-width:1400px;font:400 14px/1.9 var(--f-mono);letter-spacing:.05em;color:var(--dim)}
+#chstate{position:absolute;right:64px;top:52px;padding:6px 12px;font:600 15px var(--f-mono);letter-spacing:.14em;color:#111;background:#ffd23f;opacity:0}
+#chstate.placeholder,#chstate.failed{opacity:.92} #chstate.failed{background:var(--warn);color:#fff}
 #dbg{display:none;position:absolute;right:16px;top:12px;font:500 14px var(--f-mono);color:#0f0;background:#000a;padding:4px 8px}
 body.debug #dbg{display:block}
 /* 播放控件 */
@@ -136,6 +139,7 @@ body.render #ctrl,body.render #intro,body.render #replay,body.render #loading{di
     <div id="stat"></div>
     <div id="lower"></div>
     <div id="cap" aria-live="polite"></div>
+    <div id="chstate"></div>
     <div id="dbg"></div>
   </div>
 </div>

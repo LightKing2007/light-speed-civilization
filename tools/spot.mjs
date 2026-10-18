@@ -1,7 +1,8 @@
 // 截图检查：node tools/spot.mjs --only 05 [--every 1.5 | --times 1,4.2,9] [--out dir] [--scale 1] [--debug] [--sheet]
 // 时间为所选章节拼接后的全局秒（只选一章时就是章内秒）。输出 JPG + 可选拼图 sheet.jpg，并打印控制台报错。
+// 预览模式：构建失败的章节显示错误画面、占位章节带标记，截图照常输出；结尾列出所有问题，有问题时退出码为 1。
 import fs from 'node:fs'; import path from 'node:path';
-import { openFilm } from './browser.mjs';
+import { openFilm, onInterrupt } from './browser.mjs';
 import { ROOT } from './build.mjs';
 const A = process.argv.slice(2), arg = (k, d = null) => { const i = A.indexOf('--' + k); return i < 0 ? d : (A[i + 1] && !A[i + 1].startsWith('--') ? A[i + 1] : true); };
 const only = arg('only') ? String(arg('only')).split(',') : null;
@@ -9,6 +10,7 @@ const out = path.resolve(arg('out', path.join(ROOT, '_shots', only ? only.join('
 fs.mkdirSync(out, { recursive: true });
 const t0 = Date.now();
 const F = await openFilm({ only, scale: +arg('scale', 1), debug: !!arg('debug') });
+onInterrupt(() => F.close());
 const { page, film } = F;
 let times = arg('times') ? String(arg('times')).split(',').map(Number) : null;
 if (!times) { const ev = +arg('every', 2); times = []; for (let t = .5; t < film.TOTAL; t += ev) times.push(+t.toFixed(2)); }
@@ -28,6 +30,11 @@ if (arg('sheet')) {
   console.log('sheet:', path.join(out, 'sheet.jpg'));
 }
 console.log(`frames: ${files.length} → ${out}`);
+const errors = await page.evaluate(() => FILM.errors);
+const ph = film.chapters.filter(c => c.status === 'placeholder').map(c => c.id);
+if (ph.length) console.log('PLACEHOLDER CHAPTERS: ' + ph.join(' '));
 if (film.failed && film.failed.length) console.log('FAILED ASSETS:\n  ' + film.failed.join('\n  '));
+if (errors.length) console.log('ERRORS:\n  ' + errors.map(e => `[${e.kind}] 第 ${e.chapter} 章${e.shot ? ' 镜头 ' + e.shot : ''}${e.t != null ? ' t=' + e.t.toFixed(2) : ''}：${e.message}`).join('\n  '));
 const uniq = [...new Set(F.log)]; console.log(uniq.length ? 'CONSOLE:\n  ' + uniq.slice(0, 40).join('\n  ') : 'console: clean');
 await F.close();
+if (errors.length || film.failed.length || F.log.some(l => /^(PAGEERROR|ERROR)/.test(l))) process.exitCode = 1;

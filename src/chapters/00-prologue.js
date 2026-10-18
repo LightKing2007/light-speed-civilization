@@ -23,7 +23,7 @@ const PINYIN = 'mawodaoniuyueleyiqiedouhao', KEYS = 'qwertyuiopasdfghjklzxcvbnm'
 const HDR = (k, v) => `<span class="k">${k}</span> · ${v}`;
 
 export default {
-  id: '00', slug: 'prologue', title: '零点一秒', dur: 52,
+  id: '00', status: 'implemented', slug: 'prologue', title: '零点一秒', dur: 52,
   card: null,
   stamps: [],
   caps: [[0.6, 5.0, "纽约，晚上九点四十二分。一条消息被发出。"], [5.4, 9.8, "它先化作电磁波，飞向几百米外的基站，"], [10.0, 14.6, "再变成光脉冲，钻进埋在街道下的光纤。"], [15.0, 21.6, "横穿北美大陆，在俄勒冈海岸潜入太平洋——"], [22.0, 29.4, "沿着海底光缆跨越一万多公里，在上海登陆，点亮另一部手机。"], [29.8, 34.6, "这一路，信号只走了约十分之一秒。"], [35.2, 41.6, "一百六十年前，一封信从纽约寄到伦敦，要在海上漂十天以上。"], [42.0, 47.4, "把这段距离缩短到一眨眼的，是三条接力了一个半世纪的线索——"], [47.6, 51.6, "电波，计算，网络。"]],

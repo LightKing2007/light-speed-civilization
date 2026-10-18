@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 export default {
-  id: '15', slug: 'finale', title: '尾声', dur: 34,
+  id: '15', status: 'placeholder', slug: 'finale', title: '尾声', dur: 34,
   card: null,
   stamps: [],
   caps: [[0.4, 6.8, "从一道跳过空气的电火花，到环绕地球的光；"], [7.2, 13.4, "从一屋子的真空管，到掌心里上百亿个开关。"], [14.0, 20.4, "每一条消息，都乘着一百六十年的接力抵达。"]],

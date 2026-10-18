@@ -6,11 +6,14 @@
   "description": "光速文明 — 写实风格科普影片（three.js 实时渲染 + 逐帧导出）",
   "scripts": {
     "build": "node tools/build.mjs",
-    "serve": "python3 -m http.server 8173",
+    "serve": "node tools/server.mjs 8173",
     "spot": "node tools/spot.mjs",
     "render": "node tools/render.mjs",
     "audio": "node tools/audio.mjs",
-    "encode": "node tools/encode.mjs"
+    "encode": "node tools/encode.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check:play": "node tools/playcheck.mjs",
+    "check:export": "node tools/faultcheck.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
