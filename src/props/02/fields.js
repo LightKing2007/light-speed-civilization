@@ -12,9 +12,9 @@ const solid = (s, R) => (1 - s / Math.hypot(s, R)) / 2;   // 含磁铁内部回�
 export function fluxAt(xm, loopX, R = .075, half = .088) { return solid(loopX - (xm + half), R) - solid(loopX - (xm - half), R); }
 
 /* 时间表（章内秒） */
-export const MAG = { x0: -1.02, x1: -.63, tIn0: 6.55, tIn1: 7.35, tOut0: 7.85, tOut1: 8.65 };
+export const MAG = { x0: -1.02, x1: -.63, tIn0: 7.2, tIn1: 7.95, tOut0: 8.45, tOut1: 9.2 };
 export const magX = t => lerp(MAG.x0, MAG.x1, easeIO(clamp((t - MAG.tIn0) / (MAG.tIn1 - MAG.tIn0)))) - (MAG.x1 - MAG.x0) * easeIO(clamp((t - MAG.tOut0) / (MAG.tOut1 - MAG.tOut0)));
-export const CAP = { c0: 9.75, c1: 10.6, d0: 11.0, d1: 11.85 };
+export const CAP = { c0: 10.05, c1: 10.85, d0: 11.25, d1: 12.05 };
 export const capQ = t => easeIO(clamp((t - CAP.c0) / (CAP.c1 - CAP.c0))) - easeIO(clamp((t - CAP.d0) / (CAP.d1 - CAP.d0)));
 
 export async function buildBench(KIT) {
@@ -86,7 +86,7 @@ export async function buildBench(KIT) {
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
   const qX = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(1, 0, 0));
   const emfF = t => { const h = .01; return -(fluxAt(magX(t + h), LX) - fluxAt(magX(t - h), LX)) / (2 * h); };
-  let emfMax = 1e-6; for (let t = 6; t < 9.3; t += .01) emfMax = Math.max(emfMax, Math.abs(emfF(t)));
+  let emfMax = 1e-6; for (let t = 6; t < 10; t += .01) emfMax = Math.max(emfMax, Math.abs(emfF(t)));
   return {
     scene: s, emfMax, loopC: V(LX, LY, 0), capC: V(RX, RY, 0), magnet, LX, RX, LY,
     emf: emfF,
@@ -106,7 +106,7 @@ export async function buildBench(KIT) {
 }
 
 /* ================= 接力与横波（独立暗棚，轴线 y = 0） ================= */
-export const WAVE = { lam: 1.0, A: .3, c: .95, x0: -1.65, x1: 2.75, tw: 15.2 };
+export const WAVE = { lam: 1.0, A: .3, c: .95, x0: -1.65, x1: 2.75, tw: 15.4 };
 export async function buildWave(KIT) {
   const s = new THREE.Scene();
   const L = KIT.studio(s, { bg: 0x08090b, floorY: -.75, key: 22, keyPos: [1.5, 3.2, 3.2], target: [.4, -.4, 0], fill: 1, rim: 10, rimPos: [-2, 1.5, -3], env: .18, size: 70 });
@@ -116,7 +116,7 @@ export async function buildWave(KIT) {
   for (let k = 0; k < 7; k++) {
     const c = V(-1.0 + k * D, 0, 0), isE = k % 2 === 0;
     const ln = PL(KIT, circlePts(c, isE ? V(0, 0, 1) : V(0, 1, 0), R, 160, Math.PI), { width: 2.4, color: isE ? COL_E : COL_B, intensity: 1, opacity: 0, head: 0, pulse: 1.4, pulseLen: 6, pulseSpeed: .5 });
-    s.add(ln); links.push({ ln, c, isE, t0: 12.7 + k * .38 });
+    s.add(ln); links.push({ ln, c, isE, t0: 12.85 + k * .36 });
   }
   // 坐标轴（白色细线 + 刻度）
   const axis = PL(KIT, [V(WAVE.x0 - .1, 0, 0), V(WAVE.x1 + .12, 0, 0)], { width: 1.3, color: 0xf2f2ee, intensity: .8, opacity: 0 }); s.add(axis);
@@ -134,7 +134,7 @@ export async function buildWave(KIT) {
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = V(), _s = V(), up = V(0, 1, 0), dn = V(0, -1, 0), zp = V(0, 0, 1), zn = V(0, 0, -1);
   const st = { lam: WAVE.lam };
   // 相位 = k(t)·(x − XC) − Φ(t) + k0·(XC − x0)；Φ = ∫ k·c dt（λ 变短时频率升高、波速不变，画面中心不「扫」）
-  const XC = .4, k0 = Math.PI * 2 / WAVE.lam, TL = 22.9;
+  const XC = .4, k0 = Math.PI * 2 / WAVE.lam, TL = 22.5;
   const lamAt = t => lerp(WAVE.lam, .32, easeIO(clamp((t - TL) / 1.6)));
   const Phi = t => { let v = k0 * (Math.min(t, TL) - WAVE.tw); if (t > TL) { const n = 48, h = (t - TL) / n; for (let i = 0; i < n; i++) v += Math.PI * 2 / lamAt(TL + (i + .5) * h) * h; } return v * WAVE.c; };
   const phase = (x, t) => Math.PI * 2 / lamAt(t) * (x - XC) - Phi(t) + k0 * (XC - WAVE.x0);
@@ -145,10 +145,10 @@ export async function buildWave(KIT) {
     crest(t, near = .6) { const lam = lamAt(t), k = Math.PI * 2 / lam; let x = XC + (Math.PI / 2 + Phi(t) - k0 * (XC - WAVE.x0)) / k; x = x - Math.round((x - near) / lam) * lam; return x; },
     update(t) {
       // 接力链：依次画出，之后渐隐
-      const fadeChain = 1 - ss(15.0, 15.9, t);
+      const fadeChain = 1 - ss(15.3, 16.1, t);
       links.forEach(L => { const p = easeIO(clamp((t - L.t0) / .55)); const glow = 1 - .55 * ss(L.t0 + .5, L.t0 + 1.2, t); L.ln.set({ head: p, opacity: (p > 0 ? .95 : 0) * fadeChain * glow, time: t, intensity: .85 + .35 * (1 - ss(L.t0 + .3, L.t0 + .9, t)) }); });
-      const wa = ss(15.0, 15.7, t);
-      axis.set({ opacity: .55 * wa }); ticks.forEach(k => k.set({ opacity: .5 * wa })); arrowHead.material.opacity = .6 * wa; triad.forEach(x => x.set({ opacity: .8 * ss(15.6, 16.2, t) }));
+      const wa = ss(15.2, 15.9, t);
+      axis.set({ opacity: .55 * wa }); ticks.forEach(k => k.set({ opacity: .5 * wa })); arrowHead.material.opacity = .6 * wa; triad.forEach(x => x.set({ opacity: .8 * ss(15.8, 16.4, t) }));
       const P0 = Phi(t), lam = lamAt(t), kk = Math.PI * 2 / lam, front = WAVE.x0 + (t - WAVE.tw) * WAVE.c * 1.6;
       const fld = x => WAVE.A * Math.sin(kk * (x - XC) - P0 + k0 * (XC - WAVE.x0)) * ss(front, front - .35, x);
       eL.set({ opacity: wa }); bL.set({ opacity: wa });

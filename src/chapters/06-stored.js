@@ -4,7 +4,11 @@
    B2 换一道题：只改写两格指令，程序 A（算 7 + 5）变成程序 B（每圈加 5 的循环），不必重新接线
    C  指令周期：取指（存储器 → 控制器）→ 译码 → 执行（运算器）→ 写回；节拍越来越快直到连成一片
    D  曼彻斯特「宝宝」复原机与威廉姆斯管存储屏（照片）。
-   道具在 src/props/06/arch.js。所有动画都是 t 的纯函数。 */
+   道具在 src/props/06/arch.js。所有动画都是 t 的纯函数。
+   标注原则（可读性精修）：每个镜头同一时刻最多 2 个引线标注 + 1 个信息面板；每条标注完整停留 ≥ 3.5 秒、相邻标注错开 ≥ 0.8 秒；
+   面板底色不透明度 .86，主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」，不重复字幕。
+   A1 肖像延长到 4.5 s，让署名条停留够久；D1 / D2 两张照片共用一条署名条（两份授权都写上）。
+   指令周期的前三圈放慢（2.2 / 1.8 / 1.6 s 一圈），字幕念四个步骤时看得清每一步。 */
 import * as THREE from 'three';
 import { V, ss, clamp, easeIO, easeOut, camPath, applyCam, Path } from '../engine/util.js';
 import { ink } from '../engine/hud.js';
@@ -18,8 +22,13 @@ const ARRIVE = [0, 1, 2, 3, 24, 25, 26].map((cell, k) => ({ cell, t: 7.25 + k * 
 const REWRITE = [{ cell: 0, t: 14.1 }, { cell: 3, t: 15.4 }];                              // 写入新指令
 const TRAVEL = .5;
 /* 指令周期时间表：前 3 个周期慢放看清四个阶段，之后越来越快 */
-const CYC = []; { let t = 19.5, p = 1.75, n = 0; while (t < 32.6) { CYC.push({ t0: t, p, n }); t += p; n++; if (n >= 3) p = Math.max(1 / 90, p * (n < 6 ? .74 : .8)); } }
-const STAGES = [['取指', 'FETCH'], ['译码', 'DECODE'], ['执行', 'EXECUTE'], ['写回', 'WRITE BACK']];
+const CYC = []; { const P0 = [2.2, 1.8, 1.6]; let t = 19.5, p = P0[0], n = 0; while (t < 32.6) { CYC.push({ t0: t, p, n }); t += p; n++; p = n < 3 ? P0[n] : Math.max(1 / 90, p * (n < 6 ? .74 : .8)); } }
+const STAGES = ['取指', '译码', '执行', '写回'];
+/* 屏幕文字的统一样式 */
+const TXT = 'rgba(246,246,242,.97)', TXT2 = 'rgba(238,238,232,.9)';
+const panelBox = (g, x, y, w, h) => { g.fillStyle = 'rgba(8,10,14,.86)'; g.fillRect(x, y, w, h); ink.rect(g, x, y, w, h, 'rgba(235,235,230,.22)', 1); };
+/** 署名条（左下）后面的柔和暗底：亮的照片上也看得清 */
+const scrim = (g, a = .6) => { g.save(); g.translate(560, 792); g.scale(1, .27); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 660); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(.62, `rgba(0,0,0,${a * .75})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(-680, -680, 1360, 1360); g.restore(); };
 const cycleAt = t => { let k = -1; for (let i = 0; i < CYC.length; i++) if (t >= CYC[i].t0) k = i; else break; return k; };
 /** 第 n 个周期执行哪条指令；u = 周期内进度 0..1。程序 B 每圈：LOAD 26 → ADD 25（累加器 +5）→ STORE 26（写回 26 号格）→ JUMP 00 */
 function machine(n, u = 1) {
@@ -41,8 +50,10 @@ export default {
 
     /* ================= A1 · 冯·诺依曼 ================= */
     const phA = await KIT.photoShot('assets/photos/act2/von_neumann_1956_doe.jpg', { from: { x: 0, y: .14, s: 1.0 }, to: { x: 0, y: .1, s: 1.06 } });
-    ctx.shot({ name: '06.A1 冯·诺依曼', t0: 0, in: { type: 'blur', dur: 1.0, params: [5] }, scene: phA.scene, camera: phA.camera, post: ARCH, update(t, st) { phA.update(st / 3.6); } });
-    ctx.lower({ t0: .9, t1: 3.4, name: '约翰·冯·诺依曼 · 1903–1957', meta: '数学家 · EDVAC 报告执笔者', credit: '照片：美国能源部 · 1956 · 公有领域' });
+    ctx.shot({ name: '06.A1 冯·诺依曼', t0: 0, in: { type: 'blur', dur: 1.0, params: [5] }, scene: phA.scene, camera: phA.camera, post: ARCH, update(t, st) { phA.update(st / 5.3); } });
+    // 署名条：完整停留 3.5 s（1.4–4.9），A2 溶入时淡出；后面垫一层柔和暗底
+    ctx.draw2d({ t0: 1.0, t1: 5.3, fade: .4, draw(g) { scrim(g); } });
+    ctx.lower({ t0: 1.0, t1: 5.3, name: '约翰·冯·诺依曼（1903–1957）', meta: '数学家', credit: '照片：美国能源部 · 1956 · 公有领域' });
 
     /* ================= A2 · 《EDVAC 报告初稿》封面（排印复原） ================= */
     const sd = new THREE.Scene();
@@ -69,11 +80,11 @@ export default {
     paper.rotation.set(-Math.PI / 2, 0, .06); paper.position.y = .0008; paper.receiveShadow = true; sd.add(paper);
     const under = paper.clone(); under.material = new THREE.MeshPhysicalMaterial({ color: 0xd8c592, roughness: .9 }); under.rotation.z = -.05; under.position.set(.012, .0004, .01); sd.add(under);
     const camA2 = KIT.cam(30, .01, 10);
-    const pA2 = camPath([[3.0, [.02, .46, .2], [0, 0, -.015], 30], [6.8, [.01, .33, .13], [0, 0, -.03], 29]]);
-    const A2 = ctx.shot({ name: '06.A2 EDVAC 报告', t0: 3.1, in: { type: 'dissolve', dur: .8 }, scene: sd, camera: camA2,
-      post: { exposure: 1.05, dof: { focus: .4, aperture: .008, maxBlur: 10 }, grade: ctx.grade.warm, vignette: .36, grain: .035 },
+    // 封面上的打字标题就是主体，字幕已经说了是 EDVAC 报告：这个镜头不再加署名条（原署名条压在亮纸面上看不清）
+    const pA2 = camPath([[4.5, [.02, .46, .2], [0, 0, -.015], 30], [7.2, [.01, .33, .13], [0, 0, -.03], 29]]);
+    const A2 = ctx.shot({ name: '06.A2 EDVAC 报告', t0: 4.5, in: { type: 'dissolve', dur: .8 }, scene: sd, camera: camA2,
+      post: { exposure: 1.05, dof: { focus: .4, aperture: .0025, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .36, grain: .035 },
       update(t) { const c = pA2(t); applyCam(camA2, c, t, .0006); A2.post.dof.focus = camA2.position.distanceTo(c.l); } });
-    ctx.lower({ t0: 3.8, t1: 6.6, name: '《EDVAC 报告初稿》', meta: '1945 年 6 月 30 日 · 宾夕法尼亚大学摩尔学院', credit: '按原件封面版式排印复原' });
 
     /* ================= B / C · 冯·诺依曼结构 ================= */
     const S = await buildArch(KIT);
@@ -120,74 +131,83 @@ export default {
 
     // B1 · 全景：指令与数据写进同一个存储器
     const camB1 = KIT.cam(34, .05, 60);
-    const pB1 = camPath([[6.4, [.4, 4.7, 5.4], [0, 0, -.4], 34], [12.9, [.15, 4.1, 4.7], [0, 0, -.45], 33]]);
+    // 推近一些：存储器约占画面一半宽，输入端仍在画面左侧（输出端不参与讲解，可以出画）
+    const pB1 = camPath([[6.4, [-.1, 3.85, 3.7], [-.35, 0, -.85], 34], [12.9, [-.2, 3.45, 3.2], [-.35, 0, -.9], 33]]);
     const B1 = ctx.shot({ name: '06.B1 结构', t0: 6.4, in: { type: 'dissolve', dur: .8 }, scene: S.scene, camera: camB1,
-      post: { exposure: 1.08, ao: { radius: .25, intensity: .9 }, dof: { focus: 6, aperture: .003, maxBlur: 8 }, grade: ctx.grade.cool, vignette: .32 },
+      post: { exposure: 1.12, ao: { radius: .25, intensity: .9 }, dof: { focus: 6, aperture: .003, maxBlur: 8 }, grade: ctx.grade.cool, vignette: .3 },
       update(t) { setScene(t); const c = pB1(t); applyCam(camB1, c, t, .0006); B1.post.dof.focus = camB1.position.distanceTo(c.l); } });
-    // 模块名牌（中文）：投影到各模块上方的小标签
-    const tag = (g, p, zh, en, a) => { if (!p) return; g.save(); g.globalAlpha *= a; ink.line(g, [[p.x, p.y], [p.x, p.y - 34]], ink.dim, 1); ink.text(g, zh, p.x, p.y - 44, { font: ink.sans(22, 500), align: 'center' }); ink.text(g, en, p.x, p.y - 72, { font: ink.mono(12), color: ink.dim, align: 'center' }); g.restore(); };
-    ctx.draw2d({ shot: B1, t0: 7.0, t1: 12.8, draw(g, t, a, pr) { Object.keys(MOD).forEach((k, i) => tag(g, pr(modTop(k).add(V(0, .05, k === 'M' ? .5 : 0))), MOD[k].zh, MOD[k].name, ss(7.0 + i * .18, 7.4 + i * .18, t))); } });
-    const legend = `<span style="display:inline-block;width:14px;height:14px;background:${COL.ins};margin-right:8px;vertical-align:-1px"></span>指令　<span style="display:inline-block;width:14px;height:14px;background:${COL.data};margin:0 8px 0 14px;vertical-align:-1px"></span>数据`;
-    ctx.readout({ x: 1810, y: 96, align: 'right', t0: 8.0, t1: 19.0, html: legend });
+    // 只标存储器（字幕讲的就是它）；控制器、运算器到指令周期镜头里再标
+    ctx.callout({ shot: B1, at: V(.75, MOD.M.s[1] + .01, -1.3), title: '存储器', sub: '指令和数据都存在这里', t0: 7.3, t1: 12.6, side: 'right', dx: 110, dy: -130 });
+    // 颜色图例（B1、B2 两个镜头共用）：紫 = 指令，琥珀 = 数据
+    ctx.draw2d({ t0: 7.8, t1: 18.9, draw(g) {
+      const x = 1530, y = 56, w = 300, h = 64;
+      panelBox(g, x, y, w, h);
+      g.fillStyle = COL.ins; g.fillRect(x + 24, y + 21, 22, 22);
+      ink.text(g, '指令', x + 58, y + 42, { font: ink.sans(26, 500), color: TXT });
+      g.fillStyle = COL.data; g.fillRect(x + 160, y + 21, 22, 22);
+      ink.text(g, '数据', x + 194, y + 42, { font: ink.sans(26, 500), color: TXT });
+    } });
 
     // B2 · 换一道题：改写两格指令
     const camB2 = KIT.cam(32, .05, 60);
     const pB2 = camPath([[12.8, [-.35, 2.35, 1.35], [-.15, .3, -1.0], 32], [19.4, [-.2, 2.15, 1.15], [-.1, .3, -1.02], 31]]);
     const B2 = ctx.shot({ name: '06.B2 换程序', t0: 12.8, in: { type: 'cut' }, scene: S.scene, camera: camB2,
-      post: { exposure: 1.08, ao: { radius: .2, intensity: .9 }, dof: { focus: 2.6, aperture: .006, maxBlur: 10 }, grade: ctx.grade.cool, vignette: .32 },
+      post: { exposure: 1.12, ao: { radius: .2, intensity: .9 }, dof: { focus: 2.6, aperture: .003, maxBlur: 8 }, grade: ctx.grade.cool, vignette: .3 },
       update(t) { setScene(t); const c = pB2(t); applyCam(camB2, c, t, .0005); B2.post.dof.focus = camB2.position.distanceTo(cellPos(2)); } });
-    ctx.callout({ shot: B2, at: cellPos(0), code: 'PROGRAM', title: '写入新指令', sub: 'LOAD 24 → LOAD 26 · HALT → JUMP 00', t0: 14.3, t1: 18.7, side: 'left', dx: 120, dy: -150, style: 'accent' });
-    ctx.callout({ shot: B2, at: cellPos(26), title: '程序 B：每一圈把 5 加进 26 号格', sub: '原来的程序 A 只算一次 7 + 5', t0: 16.2, t1: 18.7, side: 'right', dx: 140, dy: 120 });
-    ctx.readout({ x: 110, y: 120, t0: 13.2, t1: 18.7, html: t => `<span class="k">ENIAC：换题 = 重新插线、拨开关</span><br>${t > 14.6 ? '存储程序：换题 = 改写存储器里的指令' : ''}` });
+    // 00 号格先被改写（14.6），03 号格随后（15.9）：标注跟着第一格出现，停到镜头末尾
+    ctx.callout({ shot: B2, at: cellPos(0), title: '改写指令', sub: '不用插线，程序就换了', t0: 14.0, t1: 18.6, side: 'right', dx: 120, dy: -150, style: 'accent' });
 
     // C · 指令周期：越来越快
     const camC = KIT.cam(34, .05, 60);
     const pC = camPath([[19.2, [.1, 3.0, 2.9], [0, .2, -.2], 34], [24.6, [.05, 3.15, 3.05], [0, .2, -.22], 34], [31.0, [0, 4.6, 4.5], [0, 0, -.35], 34], [33, [0, 4.8, 4.7], [0, 0, -.35], 34]]);
     const C = ctx.shot({ name: '06.C 指令周期', t0: 19.2, in: { type: 'dissolve', dur: .6 }, scene: S.scene, camera: camC,
-      post: { exposure: 1.08, ao: { radius: .25, intensity: .9 }, dof: { focus: 4, aperture: .003, maxBlur: 8 }, grade: ctx.grade.cool, vignette: .32, bloom: { strength: .14 } },
+      post: { exposure: 1.12, ao: { radius: .25, intensity: .9 }, dof: { focus: 4, aperture: .003, maxBlur: 8 }, grade: ctx.grade.cool, vignette: .3, bloom: { strength: .14 } },
       update(t) { setScene(t); const c = pC(t); applyCam(camC, c, t, .0005); C.post.dof.focus = camC.position.distanceTo(c.l); } });
-    // 顶部四段指示条 + 当前指令 / 累加器
-    ctx.draw2d({ t0: 19.4, t1: 32.1, draw(g, t, a, pr) {
+    // 两个主角模块：字幕念「取出指令、译码、执行」时出现，节拍变快前收起
+    ctx.callout({ shot: C, at: modTop('CC').add(V(.15, 0, -.05)), title: '控制器', sub: '取出指令，读懂它', t0: 19.9, t1: 25.6, side: 'right', dx: 130, dy: -120 });
+    ctx.callout({ shot: C, at: modTop('CA').add(V(-.15, 0, -.05)), title: '运算器', sub: '按指令做计算', t0: 20.9, t1: 26.2, side: 'left', dx: 130, dy: -120 });
+    // 唯一的信息面板（顶部居中）：四个步骤，当前这一步亮起；节拍变快后下方展开「每秒约 30 亿次」
+    ctx.draw2d({ shot: C, t0: 19.4, t1: 31.9, draw(g, t) {
       const k = cycleAt(t), c = k >= 0 ? CYC[k] : null, pk = packetAt(t), st = pk && pk.stage != null ? pk.stage : -1, blur = c && c.p < .12;
-      const x0 = 560, y0 = 70, w = 200, h = 44;
-      STAGES.forEach(([zh, en], i) => {
-        const on = blur ? .55 + .45 * Math.abs(Math.sin(t * 31 + i)) : i === st ? 1 : 0, x = x0 + i * (w + 6);
-        g.fillStyle = on ? `rgba(255,122,48,${.18 + .5 * on})` : 'rgba(10,11,12,.6)'; g.fillRect(x, y0, w, h);
-        ink.rect(g, x, y0, w, h, on ? ink.accent : ink.faint, 1);
-        ink.text(g, zh, x + 16, y0 + 30, { font: ink.sans(22, 600), color: on ? ink.white : ink.dim });
-        ink.text(g, en, x + w - 12, y0 + 29, { font: ink.mono(11), color: on ? ink.white : ink.dim, align: 'right' });
+      const bw = 200, bh = 66, gap = 8, pad = 20, Wd = pad * 2 + bw * 4 + gap * 3, X = (1920 - Wd) / 2, Y = 44;
+      const sp = ss(26.0, 26.6, t), H0 = bh + pad * 2, Hh = H0 + 92 * sp;
+      panelBox(g, X, Y, Wd, Hh);
+      STAGES.forEach((zh, i) => {
+        const on = blur ? .55 + .45 * Math.abs(Math.sin(t * 31 + i)) : i === st ? 1 : 0, x = X + pad + i * (bw + gap), y = Y + pad;
+        g.fillStyle = on ? `rgba(255,122,48,${.3 + .6 * on})` : 'rgba(255,255,255,.05)'; g.fillRect(x, y, bw, bh);
+        ink.rect(g, x, y, bw, bh, on ? ink.accent : 'rgba(235,235,230,.3)', 1.5);
+        ink.text(g, String(i + 1), x + 18, y + 44, { font: ink.mono(22, 600), color: on ? TXT : 'rgba(255,150,95,.95)' });
+        ink.text(g, zh, x + bw / 2 + 12, y + 45, { font: ink.sans(32, 600), color: on ? TXT : TXT2, align: 'center' });
       });
-      if (c) {
-        const m = machine(c.n, (t - c.t0) / c.p);
-        ink.text(g, blur ? '节拍快到看不清（示意）' : `第 ${c.n + 1} 个周期 · PC ${String(m.ins).padStart(2, '0')} · ${m.text}`, x0, y0 + h + 32, { font: ink.mono(16), color: ink.dim });
-        const p = pr(modTop('CA').add(V(0, .08, .1)));
-        if (p && !blur) { ink.text(g, '累加器', p.x, p.y - 58, { font: ink.sans(16), color: ink.dim, align: 'center' }); ink.text(g, String(m.acc), p.x, p.y - 26, { font: ink.mono(28, 600), color: COL.data, align: 'center' }); }
+      if (sp > .01) {
+        g.save(); g.globalAlpha *= sp;
+        const p = easeOut(ss(26.2, 28.4, t)), yb = Y + H0 + 66, n = String(Math.round(30 * p));
+        g.font = ink.sans(28, 500); const w1 = g.measureText('手机芯片：每秒约 ').width;
+        g.font = ink.cond(76, 600); const w2 = g.measureText(n).width;
+        g.font = ink.sans(30, 500); const w3 = g.measureText(' 亿次').width;
+        const x0 = 960 - (w1 + w2 + w3) / 2;
+        ink.line(g, [[X + pad, Y + H0 - 2], [X + Wd - pad, Y + H0 - 2]], 'rgba(235,235,230,.22)', 1);
+        ink.text(g, '手机芯片：每秒约 ', x0, yb, { font: ink.sans(28, 500), color: TXT });
+        ink.text(g, n, x0 + w1, yb + 2, { font: ink.cond(76, 600), color: TXT });
+        ink.text(g, ' 亿次', x0 + w1 + w2, yb, { font: ink.sans(30, 500), color: TXT });
+        g.restore();
       }
-    }, shot: C });
-    // 「每秒 30 亿」：放在右上方空处（右侧中部是输出模块，用固定位置的大数字会压住它）
-    ctx.draw2d({ t0: 26.4, t1: 31.6, draw(g, t) {
-      const p = easeOut(ss(26.4, 28.6, t)), x = 1810, y = 210;
-      ink.text(g, `${Math.round(30 * p)}`, x - 170, y, { font: ink.cond(120, 600), color: ink.white, align: 'right' });
-      ink.text(g, '亿', x - 120, y, { font: ink.sans(44, 500), color: ink.white, align: 'center' });
-      ink.text(g, '次 / 秒', x, y, { font: ink.sans(24), color: ink.dim, align: 'right' });
-      ink.line(g, [[x - 470, y + 26], [x, y + 26]], ink.faint, 1);
-      ink.text(g, '手机处理器主频约 3 GHz：每秒约 30 亿个节拍', x, y + 58, { font: ink.sans(19), align: 'right' });
-      ink.text(g, '按时钟频率估算 · 量级示意', x, y + 84, { font: ink.mono(13), color: ink.dim, align: 'right' });
     } });
 
     /* ================= D · 曼彻斯特「宝宝」 ================= */
     const phD1 = await KIT.photoShot('assets/photos/act2/manchester_baby_replica_head_on.jpg', { from: { x: -.2, y: 0, s: 1.04 }, to: { x: .2, y: -.05, s: 1.14 } });
     ctx.shot({ name: '06.D1 宝宝', t0: 32.0, in: { type: 'dissolve', dur: .8 }, scene: phD1.scene, camera: phD1.camera, post: { tonemap: false, grain: .03, vignette: .32, bloom: { strength: 0 } }, update(t, st) { phD1.update(st / 3.4); } });
-    ctx.lower({ t0: 32.6, t1: 35.2, name: '曼彻斯特「宝宝」（SSEM）复原机', meta: '1948 年 6 月 21 日首次运行存储程序 · 曼彻斯特科学与工业博物馆', credit: '照片：Geni · CC BY-SA 4.0' });
     const phD2 = await KIT.photoShot('assets/photos/act2/manchester_baby_replica_crt_bits.jpg', { from: { x: 0, y: 0, s: 1.1 }, to: { x: .05, y: .02, s: 1.22 } });
-    ctx.shot({ name: '06.D2 威廉姆斯管', t0: 35.0, in: { type: 'dissolve', dur: .7 }, scene: phD2.scene, camera: phD2.camera, post: { tonemap: false, grain: .03, vignette: .36, bloom: { strength: 0 } }, update(t, st) { phD2.update(st / 3.8); } });
-    ctx.lower({ t0: 35.5, t1: 37.9, name: '存储屏上的比特', meta: '威廉姆斯管：用荧光屏上的亮点记住 0 和 1', credit: '照片：Logg Tandy · CC BY 4.0' });
+    ctx.shot({ name: '06.D2 威廉姆斯管', t0: 35.0, in: { type: 'dissolve', dur: .7 }, scene: phD2.scene, camera: phD2.camera, post: { tonemap: false, exposure: 1.18, grain: .03, vignette: .3, bloom: { strength: 0 } }, update(t, st) { phD2.update(st / 3.8); } });
+    // 两张照片只有 6 秒，各配一条署名条都停不够 3.5 秒：合成一条，跨两张照片，两份授权都写上
+    ctx.draw2d({ t0: 32.4, t1: 37.9, fade: .4, draw(g) { scrim(g, .55); } });
+    ctx.lower({ t0: 32.4, t1: 37.9, name: '曼彻斯特「宝宝」复原机', meta: '内存是威廉姆斯管：屏上的亮点记住 0 和 1', credit: '照片：Geni · CC BY-SA 4.0；Logg Tandy · CC BY 4.0' });
 
     /* ================= 音效 ================= */
-    ctx.cue(3.1, 'swoosh', .3); ctx.cue(6.4, 'whoosh', 1.2, .3);
+    ctx.cue(4.5, 'swoosh', .3); ctx.cue(6.4, 'whoosh', 1.2, .3);
     for (const a of [...ARRIVE, ...REWRITE]) { ctx.cue(a.t, 'blip', a.cell < 24 ? 1320 : 990, .07); ctx.cue(a.t + TRAVEL, 'tick', .6); }
     ctx.cue(14.1, 'click', .5); ctx.cue(15.4, 'click', .5);
     for (const c of CYC) { if (c.p < .3) break; for (let s = 0; s < 4; s++) ctx.cue(c.t0 + c.p * [0, .3, .45, .75][s], s === 0 ? 'tick' : 'blip', ...(s === 0 ? [.6] : [700 + s * 220, .06])); }
-    ctx.cue(24.6, 'riser', 3.2, .18); ctx.cue(31.9, 'sub', .3);
+    ctx.cue(25.0, 'riser', 3.2, .18); ctx.cue(31.9, 'sub', .3);
   },
 };

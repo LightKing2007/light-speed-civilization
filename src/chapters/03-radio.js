@@ -4,6 +4,8 @@
         → B3 信号山风筝天线（复原，暴风云）→ C 地球侧视：直线传播被地球曲率挡住（弦深 ≈ 230 km、切线到对岸上空 ≈ 1 000 km）
         → D1 听筒与金属屑检波器：三声「嗒」=「S」→ D2 大圆 3 425 km → D3 电离层 E 层两跳 + 海面反射
         → E 摩尔斯印字机纸带（结尾：纸带水平居中、从左向右移动，匹配剪辑到 04）。
+   标注原则（可读性精修）：每个镜头同一时刻最多 2 个引线标注 + 1 个信息面板；每条标注完整停留约 3.5 秒；
+   面板底色不透明度 ≥ .86，主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」。
    道具在 src/props/03/（器材按真实尺寸以米建模；地球单位 1 = 1000 km）。所有动画都是 t 的纯函数。 */
 import * as THREE from 'three';
 import { V, ss, win, lerp, clamp, easeIO, easeOut, prog, camPath, applyCam, hash, fbm1, Path } from '../engine/util.js';
@@ -20,6 +22,11 @@ const CLICKS = [25.3, 25.62, 25.94];                                           /
 const pressAt = (t, iv) => { let a = 0; for (const [d, u] of iv) { if (t < d - .06 || t > u + .1) continue; a = Math.max(a, ss(d - .03, d, t) * (1 - ss(u, u + .03, t))); } return a; };
 const inIv = (t, iv) => iv.some(([a, b]) => t >= a && t <= b);
 const TAPE_V = .05;                                                            // 纸带速度 m/s
+const TXT = 'rgba(246,246,242,.97)', TXT2 = 'rgba(238,238,232,.9)';
+/** 信息面板底板：深色、不透明度 .86，细边框 */
+const panelBox = (g, x, y, w, h) => { g.fillStyle = 'rgba(8,10,14,.86)'; g.fillRect(x, y, w, h); ink.rect(g, x, y, w, h, 'rgba(235,235,230,.2)', 1); };
+/** 署名条（左下）后面的柔和暗底：画在 2D 层（在署名条文字之下），亮背景上也看得清 */
+const scrim = (g, a = .6) => { g.save(); g.translate(560, 792); g.scale(1, .27); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 640); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(.62, `rgba(0,0,0,${a * .75})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(-660, -660, 1320, 1320); g.restore(); };
 
 /** 原地更新 kit.pathLine 的点（不重建几何体） */
 function setLinePts(line, pts) {
@@ -97,36 +104,28 @@ export default {
     ]);
     const focA = t => gapW.clone().lerp(coilC, ss(2.6, 6, t));
     const shA = ctx.shot({ t0: 0, name: 'A 火花发射机', in: { type: 'dissolve', dur: 1.0 }, scene: sA, camera: camA,
-      post: { exposure: 1.05, ao: true, dof: { focus: .3, aperture: .009, maxBlur: 12 }, grade: ctx.grade.warm, vignette: .32, grain: .03 },
+      post: { exposure: 1.2, ao: true, dof: { focus: .3, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3, grain: .03 },
       update(t) { applyCam(camA, pA(t), t, .0012); shA.post.dof.focus = camA.position.distanceTo(focA(t)); key.set(pressAt(t, DOTS_A)); coil.setSpark(inIv(t, DOTS_A), t); } });
-    // 传输距离对数尺：赫兹 12 m → 马可尼 2.4 km → 英吉利海峡 50 km → 大西洋 3 500 km
-    ctx.draw2d({ shot: shA, t0: .9, t1: 5.85, draw(g2, t) {
-      const X0 = 1130, X1 = 1806, Y = 178, lx = v => X0 + (Math.log10(v) - 1) / 6 * (X1 - X0);
-      const p = easeOut(ss(.9, 1.7, t)), xe = lerp(X0, X1, p);
-      ink.text(g2, '传输距离 · 对数刻度', X0, Y - 82, { font: ink.mono(12), color: ink.dim });
-      g2.strokeStyle = ink.dim; g2.lineWidth = 1; g2.beginPath(); g2.moveTo(X0, Y); g2.lineTo(xe, Y); g2.stroke();
-      const lab = { 10: '10 m', 100: '100 m', 1e3: '1 km', 1e4: '10 km', 1e5: '100 km', 1e6: '1000 km', 1e7: '10⁴ km' };
-      for (let e = 1; e <= 7; e++) for (let m = 1; m < 10; m++) {
-        const v = m * 10 ** e; if (e === 7 && m > 1) break; const x = lx(v); if (x > xe) continue;
-        g2.strokeStyle = m === 1 ? ink.dim : ink.faint; g2.beginPath(); g2.moveTo(x, Y); g2.lineTo(x, Y + (m === 1 ? 7 : 4)); g2.stroke();
-        if (m === 1) ink.text(g2, lab[v], x, Y + 22, { font: ink.mono(11), color: ink.dim, align: 'center' });
-      }
-      const mk = [[12, 1.25, '赫兹 · 1888', '≈ 12 m', 'left'], [2400, 2.05, '马可尼 · 1895', '2.4 km', 'center'], [5e4, 2.75, '英吉利海峡 · 1899', '≈ 50 km', 'center'], [3.5e6, 3.45, '大西洋', '≈ 3 500 km', 'right']];
-      mk.forEach(([v, tm, name, val, al], i) => {
-        const a = ss(tm, tm + .35, t); if (a <= 0) return; const x = lx(v), acc = i === 3; g2.globalAlpha *= 1; g2.save(); g2.globalAlpha *= a;
-        const c = acc ? ink.accent : ink.white;
-        g2.fillStyle = c; g2.beginPath(); g2.arc(x, Y, acc ? 4.5 : 3.5, 0, 7); g2.fill();
-        g2.strokeStyle = c; g2.lineWidth = 1; g2.beginPath(); g2.moveTo(x, Y - 6); g2.lineTo(x, Y - 22); g2.stroke();
-        const tx = al === 'left' ? x - 4 : al === 'right' ? x + 4 : x;
-        ink.text(g2, name, tx, Y - 48, { font: ink.sans(15, 500), color: c, align: al });
-        ink.text(g2, val, tx, Y - 28, { font: ink.mono(13), color: acc ? ink.accent : ink.dim, align: al });
+    // 右上：距离对比（对数刻度）——赫兹实验约 12 米 → 跨大西洋约 3 500 公里；标题直接给结论
+    ctx.draw2d({ shot: shA, t0: 1.1, t1: 6.45, fade: .35, draw(g2, t) {
+      const X = 1150, Y = 56, X0 = 1196, X1 = 1814, A = Y + 190, lx = v => X0 + (Math.log10(v) - 1) / 6 * (X1 - X0);
+      panelBox(g2, X, Y, 710, 240);
+      ink.text(g2, '距离要放大约 30 万倍', X + 30, Y + 50, { font: ink.sans(32, 500), color: TXT });
+      const p = easeOut(ss(1.2, 1.9, t)), xe = lerp(X0, X1, p);
+      g2.strokeStyle = 'rgba(238,238,232,.75)'; g2.lineWidth = 1.5; g2.beginPath(); g2.moveTo(X0, A); g2.lineTo(xe, A);
+      for (let e = 1; e <= 7; e++) { const x = lx(10 ** e); if (x <= xe) { g2.moveTo(x, A); g2.lineTo(x, A + 9); } } g2.stroke();
+      [[12, 1.5, '赫兹的实验', '约 12 米', 'left', TXT], [3.5e6, 2.4, '跨越大西洋', '约 3 500 公里', 'right', ink.accent]].forEach(([v, tm, name, val, al, c]) => {
+        const a = ss(tm, tm + .35, t); if (a <= 0) return; const x = lx(v); g2.save(); g2.globalAlpha *= a;
+        g2.fillStyle = c; g2.beginPath(); g2.arc(x, A, 7, 0, 7); g2.fill();
+        const tx = al === 'left' ? x - 6 : x + 6;
+        ink.text(g2, name, tx, A - 62, { font: ink.sans(22), color: TXT2, align: al });
+        ink.text(g2, val, tx, A - 22, { font: ink.sans(30, 600), color: c, align: al });
         g2.restore();
       });
-      const b = ss(4.0, 4.5, t);
-      if (b > 0) { g2.save(); g2.globalAlpha *= b; g2.setLineDash([3, 4]); g2.strokeStyle = ink.accent; g2.beginPath(); g2.moveTo(lx(12), Y + 40); g2.lineTo(lerp(lx(12), lx(3.5e6), easeOut(b)), Y + 40); g2.stroke(); g2.setLineDash([]);
-        ink.text(g2, '≈ 赫兹实验的 30 万倍', lx(3.5e6), Y + 60, { font: ink.mono(13), color: ink.accent, align: 'right' }); g2.restore(); }
+      const b = ss(2.9, 3.6, t);
+      if (b > 0) { const xa = lx(12) + 12, xb = lerp(xa, lx(3.5e6) - 12, easeOut(b)), yy = A + 26; g2.save(); g2.setLineDash([6, 6]); g2.strokeStyle = ink.accent; g2.lineWidth = 2; g2.beginPath(); g2.moveTo(xa, yy); g2.lineTo(xb, yy); g2.stroke(); g2.setLineDash([]); g2.fillStyle = ink.accent; g2.beginPath(); g2.moveTo(xb + 8, yy); g2.lineTo(xb - 6, yy - 7); g2.lineTo(xb - 6, yy + 7); g2.fill(); g2.restore(); }
     } });
-    ctx.lower({ t0: 3.75, t1: 5.95, name: '古列尔莫·马可尼 · 1874–1937', meta: '意大利发明家 · 1896 年在英国申请无线电报专利，时年 22 岁', credit: '画面为写实复原：感应线圈火花发射机 · 天线向上、地线入地' });
+    ctx.callout({ shot: shA, at: gapW.clone().add(V(-.012, .01, 0)), t0: 1.9, t1: 6.45, side: 'left', dx: 150, dy: 150, title: '火花发射机', sub: '按一下电键，跳一次火花' });
 
     /* ================================================================
        B1 · 波尔杜（真实悬崖 HDRI + 复原的扇形天线与机房）
@@ -142,13 +141,12 @@ export default {
     const gB = buildGround(KIT, { size: 1400, amp: 1.0, color: '#4f5537', seed: 5 }); gB.position.y = -.06; sB.add(gB);
     const SL = p => W_(station.group, V(...p));
     const camB = KIT.cam(42); camB.far = 3000; camB.updateProjectionMatrix();
-    const pB = camPath([[6.0, SL([-20, 1.7, -80]).toArray(), SL([-5, 17, 0]).toArray(), 42], [10.8, SL([-12, 2.1, -65]).toArray(), SL([-1, 22.5, 0]).toArray(), 40]]);
+    const pB = camPath([[6.0, SL([-20, 1.7, -80]).toArray(), SL([-5, 17, 0]).toArray(), 42], [11.8, SL([-11, 2.2, -62]).toArray(), SL([-.5, 23, 0]).toArray(), 39.5]]);
     const shB = ctx.shot({ t0: 6.0, name: 'B1 波尔杜', in: { type: 'dissolve', dur: .6 }, scene: sB, camera: camB,
       post: { exposure: 1.0, grade: ctx.grade.cool, vignette: .28, grain: .028 }, update(t) { applyCam(camB, pB(t), t, .0007); } });
-    ctx.callout({ shot: shB, at: SL(station.fanMid.toArray()), title: '扇形天线', sub: '54 根铜线 · 挂在两根桅杆之间', t0: 7.0, t1: 10.6, side: 'right', dx: 130, dy: -90 });
-    ctx.measure({ shot: shB, a: SL(station.mastBase.toArray()), b: SL(station.mastTop.toArray()), label: '≈ 48 m', t0: 7.6, t1: 10.6, off: 30 });
-    ctx.callout({ shot: shB, at: SL(station.hut.toArray()), title: '发射机房', sub: '25 kW 交流发电机驱动火花放电', t0: 8.3, t1: 10.6, side: 'left', dx: 120, dy: -120 });
-    ctx.lower({ t0: 6.5, t1: 10.4, name: '波尔杜无线电站（复原）', meta: '英格兰康沃尔 · 1901 年 12 月的临时扇形天线', credit: '原 20 根桅杆的环形天线阵于 1901 年 9 月毁于风暴 · 环境：Poly Haven「white_cliff_top」CC0' });
+    ctx.callout({ shot: shB, at: SL(station.fanMid.toArray()), title: '扇形天线', sub: '54 根铜线，桅杆高约 48 米', t0: 6.8, t1: 11.3, side: 'right', dx: 130, dy: -90 });
+    ctx.draw2d({ t0: 6.5, t1: 11.0, fade: .4, draw(g2) { scrim(g2); } });
+    ctx.lower({ t0: 6.5, t1: 11.0, name: '波尔杜无线电站（复原）', meta: '英格兰康沃尔 · 1901 年', credit: '背景环境：Poly Haven「white_cliff_top」CC0' });
 
     /* ================================================================
        写实地球（B2 定位 / C 地球曲率 / D2 大圆 / D3 电离层 共用）
@@ -175,23 +173,26 @@ export default {
     const LINES = [gcLine, tanLine, chordLine, arcLine, msArc, ...msT, hopLine];
     for (const l of LINES) if (l !== gcLine) sE.add(l);
     const showOnly = (...on) => { for (const l of LINES) l.visible = on.includes(l); };
-    const pin = (g2, P, p3, label, sub, right, a = 1) => {
-      const p = P(p3); if (!p) return; g2.save(); g2.globalAlpha *= a;
-      g2.fillStyle = ink.white; g2.beginPath(); g2.arc(p.x, p.y, 3.5, 0, 7); g2.fill(); g2.strokeStyle = ink.white; g2.lineWidth = 1; g2.beginPath(); g2.arc(p.x, p.y, 8, 0, 7); g2.stroke();
-      const x = p.x + (right ? 16 : -16);
-      ink.text(g2, label, x, p.y + 30, { font: ink.sans(18, 500), align: right ? 'left' : 'right' });
-      if (sub) ink.text(g2, sub, x, p.y + 50, { font: ink.mono(12), color: ink.dim, align: right ? 'left' : 'right' });
+    /** 地名图钉：白点 + 圆圈 + 带底板的地名（28 px） */
+    const pin = (g2, P, p3, label, right, a = 1) => {
+      const p = P(p3); if (!p || a <= 0) return; g2.save(); g2.globalAlpha *= a;
+      g2.fillStyle = ink.white; g2.beginPath(); g2.arc(p.x, p.y, 5, 0, 7); g2.fill(); g2.strokeStyle = ink.white; g2.lineWidth = 2; g2.beginPath(); g2.arc(p.x, p.y, 12, 0, 7); g2.stroke();
+      g2.font = ink.sans(28, 500); const tw = g2.measureText(label).width, x = p.x + (right ? 20 : -20), y = p.y + 44;
+      g2.fillStyle = 'rgba(8,10,14,.86)'; g2.fillRect(right ? x - 10 : x - tw - 10, y - 30, tw + 20, 42);
+      ink.text(g2, label, x, y, { font: ink.sans(28, 500), color: TXT, align: right ? 'left' : 'right' });
       g2.restore();
     };
 
     /* ---------------- B2 · 地球定位：波尔杜 → 信号山 ---------------- */
     const camE2 = KIT.cam(34);
-    const pE2 = camPath([[10.5, E.ll(32, -9, 5.4).toArray(), E.ll(49, -12, 0).toArray(), 34], [13.6, E.ll(30.5, -43, 5.0).toArray(), E.ll(48, -46, 0).toArray(), 33]]);
-    const shE2 = ctx.shot({ t0: 10.5, name: 'B2 两岸定位', in: { type: 'dissolve', dur: .8 }, scene: sE, camera: camE2,
-      post: { exposure: 1.15, grade: ctx.grade.space, vignette: .3 },
-      update(t) { sE.background = starsBG; showOnly(gcLine); shell.set(0); gcLine.set({ head: prog(t, 11.1, 12.9) }); applyCam(camE2, pE2(t)); E.update(t, camE2); } });
-    ctx.callout({ shot: shE2, at: () => E.ll(POL[0], POL[1]), title: '波尔杜', sub: '英格兰康沃尔 · 此刻正值日落', t0: 10.9, t1: 13.4, side: 'right', dx: 80, dy: -90, occlude: E.occlude });
-    ctx.callout({ shot: shE2, at: () => E.ll(SIG[0], SIG[1]), title: '信号山', sub: '纽芬兰圣约翰斯 · 当地中午', t0: 12.1, t1: 13.4, side: 'left', dx: 90, dy: -100, occlude: E.occlude });
+    const pE2 = camPath([[11.0, E.ll(32, -9, 5.4).toArray(), E.ll(49, -12, 0).toArray(), 34], [15.2, E.ll(30.5, -45, 5.0).toArray(), E.ll(48, -48, 0).toArray(), 33]]);
+    const shE2 = ctx.shot({ t0: 11.0, name: 'B2 两岸定位', in: { type: 'dissolve', dur: .8 }, scene: sE, camera: camE2,
+      post: { exposure: 1.2, grade: ctx.grade.space, vignette: .3 },
+      update(t) { sE.background = starsBG; showOnly(gcLine); shell.set(0); gcLine.set({ head: prog(t, 11.6, 13.3) }); applyCam(camE2, pE2(t)); E.update(t, camE2); } });
+    // 两个地名一起出现（一个标注），被地球挡住时隐藏
+    ctx.draw2d({ shot: shE2, t0: 11.3, t1: 14.8, draw(g2, t, a, P) {
+      for (const [ll, lab, right] of [[POL, '波尔杜 · 发射', true], [SIG, '信号山 · 接收', false]]) { const w = E.ll(ll[0], ll[1]); if (!E.occlude(camE2.position, w)) pin(g2, P, w, lab, right); }
+    } });
 
     /* ================================================================
        B3 · 信号山：风筝天线（复原）
@@ -218,31 +219,28 @@ export default {
     const updWire = t => { for (let i = 0; i < NWP; i++) wireAt(t, i / (NWP - 1), wirePts[i]); setLinePts(wireLine, wirePts); };
     const camC = KIT.cam(38); camC.far = 3000; camC.updateProjectionMatrix();
     const CP = [17, 1.65, 19];
-    const pC = camPath([[13.3, CP, [4, 5.8, 2], 38], [14.7, CP, [8.5, 21, -15], 30], [16.5, CP, [25, 74, -66], 15], [18.1, CP, K0.toArray(), 6.8]]);
-    const shC = ctx.shot({ t0: 13.3, name: 'B3 信号山风筝', in: { type: 'blur', dur: .8, params: [5] }, scene: sC, camera: camC,
-      post: { exposure: 1.05, grade: ctx.grade.cool, vignette: .3, grain: .032 },
+    const pC = camPath([[13.3, CP, [4, 5.8, 2], 38], [14.7, CP, [8.5, 21, -15], 30], [16.5, CP, [25, 74, -66], 15], [18.1, CP, K0.toArray(), 5.6]]);
+    const shC = ctx.shot({ t0: 14.4, name: 'B3 信号山风筝', in: { type: 'blur', dur: .8, params: [5] }, scene: sC, camera: camC,
+      post: { exposure: 1.1, grade: ctx.grade.cool, vignette: .3, grain: .032 },
       update(t) { sky.set(t); updWire(t); applyCam(camC, pC(t), t, .0016); } });
-    ctx.callout({ shot: shC, at: t => wireAt(t, .1), title: '天线导线', sub: '从风筝一直垂进接收室', t0: 14.0, t1: 15.7, side: 'right', dx: 120, dy: -60 });
-    ctx.callout({ shot: shC, at: t => kitePos(t), title: '风筝天线', sub: '约 152 m 铜线 · 被风筝拉上高空', t0: 16.9, t1: 18.1, side: 'left', dx: 150, dy: 60 });
-    ctx.lower({ t0: 13.8, t1: 17.9, name: '信号山（复原）', meta: '纽芬兰圣约翰斯 · 1901 年 12 月 12 日 · 狂风', credit: '场景为写实复原 · 远处为卡伯特塔（1900 年落成）' });
+    // 引线锚点沿天线导线滑动、始终落在镜头正在看的那一段（镜头上摇到风筝时正好指到风筝）
+    const uLook = t => clamp((pC(t).l.y - H0.y) / (K0.y - H0.y), .08, 1);
+    ctx.callout({ shot: shC, at: t => wireAt(t, uLook(t)), title: '风筝天线', sub: '风筝把约 152 米铜线拉上天', t0: 14.5, t1: 18.9, side: 'left', dx: 170, dy: -30 });
 
     /* ================================================================
        C · 地球侧视：直线传播会被地球曲率挡住
        ================================================================ */
     const camS = KIT.cam(5); camS.near = 5; camS.far = 80; camS.updateProjectionMatrix();
-    const shCC = ctx.shot({ t0: 18.0, name: 'C 地球曲率', in: { type: 'dissolve', dur: .7 }, scene: sE, camera: camS,
-      post: { exposure: 1.12, grade: ctx.grade.space, vignette: .3 },
+    const shCC = ctx.shot({ t0: 18.3, name: 'C 地球曲率', in: { type: 'dissolve', dur: .7 }, scene: sE, camera: camS,
+      post: { exposure: 1.2, grade: ctx.grade.space, vignette: .3 },
       update(t) {
         sE.background = BLACK; shell.set(0); showOnly(tanLine, chordLine);
-        tanLine.set({ head: prog(t, 19.6, 21.0, easeOut), opacity: 1 }); chordLine.set({ head: prog(t, 21.4, 22.4), opacity: 1 });
-        sidePose(camS, S, R, lerp(.014, -.01, prog(t, 18, 24, x => x)), lerp(5.7, 5.35, prog(t, 18, 24)), 455); E.update(t, camS);
+        tanLine.set({ head: prog(t, 19.1, 20.3, easeOut), opacity: 1 }); chordLine.set({ head: prog(t, 20.5, 21.3), opacity: 1 });
+        sidePose(camS, S, R, lerp(.014, -.01, prog(t, 18.3, 24.4, x => x)), lerp(5.7, 5.35, prog(t, 18.3, 24.4)), 455); E.update(t, camS);
       } });
-    ctx.draw2d({ shot: shCC, t0: 18.3, t1: 24.05, draw(g2, t, a, P) {
-      pin(g2, P, PA, '波尔杜', '发射', true, ss(18.3, 18.7, t)); pin(g2, P, PS, '信号山', '接收', false, ss(18.5, 18.9, t));
-    } });
-    ctx.callout({ shot: shCC, at: S.P(0, R + .012), title: '地球曲率', sub: '两地相隔约 31° 圆心角', t0: 18.9, t1: 24.0, side: 'right', dx: 90, dy: -150 });
-    ctx.callout({ shot: shCC, at: PA.clone().add(tanDir.clone().multiplyScalar(3.35)), title: '电波沿直线飞向太空', sub: '到纽芬兰上空已高出地面约 1 000 km', t0: 20.5, t1: 24.0, side: 'right', dx: 110, dy: -70 });
-    ctx.callout({ shot: shCC, at: PA.clone().lerp(PS, .5), title: '直线连线要穿过地球', sub: '中点在海面以下约 230 km', t0: 22.0, t1: 24.0, side: 'right', dx: 120, dy: 120, style: 'warn' });
+    ctx.draw2d({ shot: shCC, t0: 18.5, t1: 24.45, draw(g2, t, a, P) { pin(g2, P, PA, '波尔杜 · 发射', true); pin(g2, P, PS, '信号山 · 接收', false); } });
+    ctx.callout({ shot: shCC, at: PA.clone().add(tanDir.clone().multiplyScalar(3.35)), title: '沿直线飞向太空', sub: '到纽芬兰上空已高出约 1000 公里', t0: 19.5, t1: 24.75, side: 'right', dx: 110, dy: -70 });
+    ctx.callout({ shot: shCC, at: PA.clone().lerp(PS, .5), title: '直线要穿过地球', sub: '中点在海面下约 230 公里', t0: 20.4, t1: 24.75, side: 'right', dx: 120, dy: 130, style: 'warn' });
 
     /* ================================================================
        D1 · 信号山接收室：电话听筒 + 金属屑检波器
@@ -265,64 +263,59 @@ export default {
     await prop(sD, 'pocket_watch', .055, [.15, .006, .12], 2.6);
     const camD = KIT.cam(32);
     const earC = W_(ear.group, V(0, .06, 0)), tubeW = W_(coh.group, coh.tube);
-    const pD = camPath([[24.0, [.12, .12, .34], [-.01, .035, -.01], 32], [27.7, [.07, .1, .27], [-.025, .038, -.03], 31]]);
-    const shD = ctx.shot({ t0: 24.0, name: 'D1 听筒', in: { type: 'cut' }, scene: sD, camera: camD,
-      post: { exposure: 1.0, ao: true, dof: { focus: .3, aperture: .011, maxBlur: 12 }, grade: ctx.grade.cool, vignette: .34, grain: .03 },
+    const pD = camPath([[24.4, [.12, .12, .34], [-.01, .035, -.01], 32], [27.9, [.07, .1, .27], [-.025, .038, -.03], 31]]);
+    const shD = ctx.shot({ t0: 24.4, name: 'D1 听筒', in: { type: 'cut' }, scene: sD, camera: camD,
+      post: { exposure: 1.22, ao: true, dof: { focus: .3, aperture: .003, maxBlur: 8 }, grade: ctx.grade.cool, vignette: .3, grain: .03 },
       update(t) { applyCam(camD, pD(t), t, .001); shD.post.dof.focus = camD.position.distanceTo(earC.clone().lerp(tubeW, .35)); coh.setTap(pressAt(t, CLICKS.map(c => [c, c + .05]))); } });
-    ctx.callout({ shot: shD, at: earC, title: '电话听筒', sub: '信号极弱，只能靠耳朵分辨', t0: 24.4, t1: 27.6, side: 'right', dx: 120, dy: 90 });
-    ctx.callout({ shot: shD, at: tubeW, title: '金属屑检波器', sub: '电波一到，管里的金属屑就导通', t0: 24.9, t1: 27.6, side: 'left', dx: 110, dy: -110 });
-    // 「S」读数：三点随三声「嗒」出现（跨 D1 / D2）
-    ctx.draw2d({ t0: 24.95, t1: 30.3, draw(g2, t) {   // 第一声「嗒」（25.3）前一刻出现，不留空面板
-      const x = 1508, y = 128;
-      g2.fillStyle = 'rgba(8,10,12,.42)'; g2.fillRect(x - 18, y - 30, 330, 150); ink.corners(g2, x - 18, y - 30, 330, 150, 12, ink.faint, 1);
-      ink.text(g2, '耳机里的信号', x, y - 6, { font: ink.mono(14), color: ink.dim });
-      g2.strokeStyle = ink.faint; g2.lineWidth = 1.2; for (let i = 0; i < 3; i++) { g2.beginPath(); g2.arc(x + 14 + i * 42, y + 48, 8, 0, 7); g2.stroke(); }   // 等待中的三个空位
-      CLICKS.forEach((c, i) => { const a = ss(c - .01, c + .04, t); if (a <= 0) return; const fl = 1 - ss(c, c + .35, t); g2.fillStyle = fl > .02 ? `rgba(255,${Math.round(122 + 120 * (1 - fl))},${Math.round(48 + 190 * (1 - fl))},${a})` : ink.white; g2.beginPath(); g2.arc(x + 14 + i * 42, y + 48, 8 + 3 * fl, 0, 7); g2.fill(); });
-      const s = ss(26.15, 26.5, t); if (s > 0) { g2.save(); g2.globalAlpha *= s; ink.text(g2, '=', x + 148, y + 60, { font: ink.mono(30), color: ink.dim }); ink.text(g2, 'S', x + 190, y + 76, { font: ink.cond(78, 600), color: ink.accent }); ink.text(g2, '摩尔斯「S」= 三短', x, y + 104, { font: ink.sans(15), color: ink.white }); g2.restore(); }
+    // 右上「耳机里的信号」面板（跨 D1 / D2）：三声「嗒」逐个点亮 → 「= S」→ 跨越约 3 500 公里
+    ctx.draw2d({ t0: 24.7, t1: 31.6, fade: .35, draw(g2, t) {
+      const x = 1380, y = 60, w = 480;
+      panelBox(g2, x, y, w, lerp(212, 268, ss(27.75, 28.1, t)));
+      ink.text(g2, '听筒里传来三声轻响', x + 26, y + 50, { font: ink.sans(30, 500), color: TXT });
+      const cy = y + 112;
+      g2.strokeStyle = 'rgba(235,235,230,.45)'; g2.lineWidth = 2; for (let i = 0; i < 3; i++) { g2.beginPath(); g2.arc(x + 44 + i * 56, cy, 13, 0, 7); g2.stroke(); }   // 等待中的三个空位
+      CLICKS.forEach((c, i) => { const a = ss(c - .01, c + .04, t); if (a <= 0) return; const fl = 1 - ss(c, c + .35, t); g2.fillStyle = fl > .02 ? `rgba(255,${Math.round(122 + 120 * (1 - fl))},${Math.round(48 + 190 * (1 - fl))},${a})` : ink.white; g2.beginPath(); g2.arc(x + 44 + i * 56, cy, 13 + 4 * fl, 0, 7); g2.fill(); });
+      const s2 = ss(26.15, 26.5, t); if (s2 > 0) { g2.save(); g2.globalAlpha *= s2; ink.text(g2, '=', x + 222, cy + 14, { font: ink.mono(40), color: TXT2 }); ink.text(g2, 'S', x + 270, cy + 30, { font: ink.cond(88, 600), color: ink.accent }); ink.text(g2, '摩尔斯电码：三短 = S', x + 26, cy + 70, { font: ink.sans(22), color: TXT2 }); g2.restore(); }
+      const d = ss(27.8, 28.2, t); if (d > 0) { g2.save(); g2.globalAlpha *= d; ink.text(g2, '跨越约 3 500 公里', x + 26, cy + 128, { font: ink.sans(32, 600), color: ink.accent }); g2.restore(); }
     } });
 
     /* ---------------- D2 · 3 425 km 的大圆 ---------------- */
-    const shD2 = ctx.shot({ t0: 27.6, name: 'D2 约 3500 km', in: { type: 'dissolve', dur: .5 }, scene: sE, camera: camS,
-      post: { exposure: 1.12, grade: ctx.grade.space, vignette: .3 },
+    const shD2 = ctx.shot({ t0: 27.4, name: 'D2 约 3500 km', in: { type: 'dissolve', dur: .5 }, scene: sE, camera: camS,
+      post: { exposure: 1.2, grade: ctx.grade.space, vignette: .3 },
       update(t) {
         sE.background = BLACK; shell.set(0); showOnly(chordLine, arcLine, msArc, ...msT);
-        chordLine.set({ head: 1, opacity: .22 }); arcLine.set({ head: prog(t, 27.9, 29.1) });
-        const m = prog(t, 28.6, 29.4); msArc.set({ head: m }); msT.forEach(l => l.set({ opacity: .75 * ss(28.5, 28.8, t) }));
-        sidePose(camS, S, R, lerp(-.004, .004, prog(t, 27.6, 30.4, x => x)), lerp(5.4, 5.15, prog(t, 27.6, 30.4)), 470); E.update(t, camS);
+        chordLine.set({ head: 1, opacity: .22 }); arcLine.set({ head: prog(t, 27.7, 28.9) });
+        const m = prog(t, 28.4, 29.2); msArc.set({ head: m }); msT.forEach(l => l.set({ opacity: .75 * ss(28.3, 28.6, t) }));
+        sidePose(camS, S, R, lerp(-.004, .004, prog(t, 27.4, 31.5, x => x)), lerp(5.4, 5.15, prog(t, 27.4, 31.5)), 470); E.update(t, camS);
       } });
-    ctx.draw2d({ shot: shD2, t0: 27.75, t1: 30.45, draw(g2, t, a, P) {
-      pin(g2, P, PA, '波尔杜', '', true); pin(g2, P, PS, '信号山', '', false);
-      const m = ss(29.0, 29.4, t); const p = P(S.P(0, R + .5)); if (!p || m <= 0) return;
-      g2.save(); g2.globalAlpha *= m; g2.fillStyle = 'rgba(0,0,0,.6)'; g2.fillRect(p.x - 130, p.y - 44, 260, 64);
-      ink.text(g2, '≈ 3 500 km', p.x, p.y - 8, { font: ink.cond(40, 600), color: ink.white, align: 'center' });
-      ink.text(g2, '大圆距离 3 425 km', p.x, p.y + 14, { font: ink.mono(13), color: ink.dim, align: 'center' }); g2.restore();
-    } });
+    // 地名沿用上一镜头（同一位置、同样字样），距离写在右上面板里
+    ctx.draw2d({ shot: shD2, t0: 27.4, t1: 31.05, fade: .1, draw(g2, t, a, P) { pin(g2, P, PA, '波尔杜 · 发射', true); pin(g2, P, PS, '信号山 · 接收', false); } });
 
     /* ---------------- D3 · 电离层 E 层：两跳折返 + 海面反射 ---------------- */
     const camS3 = KIT.cam(5); camS3.near = 5; camS3.far = 80; camS3.updateProjectionMatrix();
-    const HU = t => prog(t, 31.3, 34.9, x => x * x * (3 - 2 * x) * .7 + x * .3);
-    const shD3 = ctx.shot({ t0: 30.4, name: 'D3 电离层', in: { type: 'cut' }, scene: sE, camera: camS3,
-      post: { exposure: 1.12, grade: ctx.grade.space, vignette: .3 },
+    const HU = t => prog(t, 31.8, 35.2, x => x * x * (3 - 2 * x) * .7 + x * .3);
+    /** D3 相机：先看全程，再跟着电波推近，最后拉回；返回画面中心的 φ、画面宽（千公里）、地平线像素高度 */
+    const d3view = t => {
+      const ph = S.phiOf(hopP.at(Math.max(0, HU(t) - .03)));
+      const k = ss(31.3, 32.1, t) * (1 - ss(35.0, 36.1, t)), phiW = lerp(.01, -.01, prog(t, 31.0, 37.6, x => x));
+      return { phi: lerp(phiW, ph, k), w: lerp(5.1, 2.35, k), limb: lerp(505, 590, k) };
+    };
+    const shD3 = ctx.shot({ t0: 31.0, name: 'D3 电离层', in: { type: 'cut' }, scene: sE, camera: camS3,
+      post: { exposure: 1.2, grade: ctx.grade.space, vignette: .3 },
       update(t) {
-        sE.background = BLACK; showOnly(hopLine, tanLine); shell.set(ss(30.45, 31.3, t));
-        tanLine.set({ head: 1, opacity: .16 * ss(30.4, 30.8, t) });
-        const u = HU(t); hopLine.set({ head: u });
-        const ph = S.phiOf(hopP.at(Math.max(0, u - .03)));
-        const k = ss(30.9, 31.8, t) * (1 - ss(34.7, 35.9, t));
-        const phiW = lerp(.01, -.01, prog(t, 30.4, 37, x => x));
-        sidePose(camS3, S, R, lerp(phiW, ph, k), lerp(5.1, 2.35, k), lerp(505, 590, k)); E.update(t, camS3);
+        sE.background = BLACK; showOnly(hopLine, tanLine); shell.set(ss(31.05, 31.8, t));
+        tanLine.set({ head: 1, opacity: .16 * ss(31.0, 31.4, t) });
+        hopLine.set({ head: HU(t) });
+        const v = d3view(t); sidePose(camS3, S, R, v.phi, v.w, v.limb); E.update(t, camS3);
       } });
-    ctx.draw2d({ shot: shD3, t0: 30.5, t1: 37.05, draw(g2, t, a, P) {
-      pin(g2, P, PA, '波尔杜', '', true); pin(g2, P, PS, '信号山', '', false, .6 + .4 * ss(34.85, 35.0, t));
-      const arr = ss(34.9, 35.05, t) * (1 - ss(35.6, 36.2, t)); const p = P(PS);
-      if (p && arr > 0) { g2.save(); g2.globalAlpha *= arr; g2.strokeStyle = ink.accent; g2.lineWidth = 1.5; g2.beginPath(); g2.arc(p.x, p.y, 8 + 26 * ss(34.9, 35.8, t), 0, 7); g2.stroke(); g2.restore(); }
-      if (p) { const s = ss(35.1, 35.4, t); if (s > 0) { g2.save(); g2.globalAlpha *= s; ink.text(g2, '· · ·  S', p.x - 16, p.y - 22, { font: ink.mono(16), color: ink.accent, align: 'right' }); g2.restore(); } }
+    ctx.draw2d({ shot: shD3, t0: 30.9, t1: 37.3, fade: .1, draw(g2, t, a, P) {
+      pin(g2, P, PA, '波尔杜 · 发射', true); pin(g2, P, PS, '信号山 · 接收', false);
+      const arr = ss(35.2, 35.35, t) * (1 - ss(35.9, 36.5, t)); const p = P(PS);
+      if (p && arr > 0) { g2.save(); g2.globalAlpha *= arr; g2.strokeStyle = ink.accent; g2.lineWidth = 2.5; g2.beginPath(); g2.arc(p.x, p.y, 12 + 30 * ss(35.2, 36.1, t), 0, 7); g2.stroke(); g2.restore(); }
     } });
-    ctx.callout({ shot: shD3, at: S.P(S.phiA - .07, R + .14), title: '电离层', sub: '高空被阳光电离的稀薄气体', t0: 30.9, t1: 32.2, side: 'right', dx: 110, dy: -110 });
-    ctx.callout({ shot: shD3, at: hop.apex[0], title: 'E 层 · 约 100 km', sub: '肯内利—亥维赛层 · 把中波折回地面', t0: 32.05, t1: 36.9, side: 'right', dx: 90, dy: -120, style: 'accent' });
-    ctx.callout({ shot: shD3, at: S.P(0, R + .004), title: '海面反射', sub: '导电的海水把电波再弹上去', t0: 33.05, t1: 36.9, side: 'left', dx: 100, dy: 110 });
-    ctx.readout({ x: 1810, y: 96, align: 'right', t0: 33.6, t1: 36.9, html: () => '<span class="k">频段</span> 中/长波 · 约 500 kHz <span class="k">（未实测）</span>' });
-    ctx.readout({ x: 1810, y: 132, align: 'right', t0: 34.0, t1: 36.9, html: () => '<span class="k">1902 年肯内利、亥维赛提出 · 1924 年阿普尔顿证实</span>' });
+    // 锚点跟着镜头：始终落在画面中心偏右的电离层（约 100 km 高）上，推近跟拍时不会出画
+    ctx.callout({ shot: shD3, at: t => { const v = d3view(t); return S.P(v.phi + .12 * v.w / R, R + .102); }, title: '电离层', sub: '高约 100 公里，把电波折回', t0: 31.9, t1: 37.3, side: 'right', dx: 90, dy: -130, style: 'accent' });
+    ctx.callout({ shot: shD3, at: S.P(0, R + .004), title: '海面', sub: '再把电波弹上去', t0: 32.8, t1: 37.3, side: 'left', dx: 100, dy: 120 });
 
     /* ================================================================
        E · 摩尔斯印字机纸带（结尾构图与 04 开头匹配）
@@ -342,23 +335,24 @@ export default {
     const pF = camPath([[37.0, [.33, .25, .45], [.02, .1, 0], 32], [38.7, [.43, .26, .23], [.3, .112, 0], 31], [40.1, [.4, INK.TAPE_Y + .2015, .0001], [.4, INK.TAPE_Y, 0], 30], [42.3, [.4, INK.TAPE_Y + .2015, .0001], [.4, INK.TAPE_Y, 0], 30, 'hold']]);
     const UP0 = V(0, 1, 0), UP1 = V(0, 0, -1);
     const shF = ctx.shot({ t0: 37.0, name: 'E 印字机纸带', in: { type: 'dissolve', dur: .8 }, scene: sF, camera: camF,
-      post: { exposure: 1.02, ao: true, dof: { focus: .35, aperture: .012, maxBlur: 14 }, grade: ctx.grade.warm, vignette: .3, grain: .03 },
+      post: { exposure: 1.16, ao: true, dof: { focus: .35, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3, grain: .03 },
       update(t) {
         const press = tape.pressAt(t, TAPE_V); tape.update(t, TAPE_V); inker.update(t, TAPE_V, press);
         camF.up.copy(UP0).lerp(UP1, ss(38.5, 40.05, t)).normalize(); const c = pF(t); applyCam(camF, c, t, .0004 * (1 - ss(39.5, 40.5, t)));
         shF.post.dof.focus = camF.position.distanceTo(c.l);
       } });
-    ctx.callout({ shot: shF, at: V(.2, INK.TAPE_Y + .001, 0), title: '此后马可尼电台的印字机纸带', sub: '1901 年信号山只靠耳朵听，没有纸面记录', t0: 37.6, t1: 39.5, side: 'right', dx: 60, dy: -150 });
+    // 说明：1901 年信号山只靠耳朵听；纸带印字机是此后电台的做法。锚点沿纸带移动，镜头俯拍时仍在画面内
+    ctx.callout({ shot: shF, at: t => V(lerp(.2, .36, ss(38.4, 40.0, t)), INK.TAPE_Y + .001, 0), title: '印字机纸带', sub: '1901 年靠耳听，后来才用它', t0: 37.5, t1: 42.0, side: 'right', dx: 60, dy: -150 });
 
     /* ---------------- 音效 ---------------- */
     for (const [d, u] of DOTS_A) { ctx.cue(d, 'spark', .7); ctx.cue(d, 'click', .3); ctx.cue(u, 'tap', .3); }
     ctx.cue(6.0, 'sub', .45); ctx.cue(6.1, 'whoosh', 3.6, .16);
-    ctx.cue(10.5, 'whoosh', 1.4, .28); ctx.cue(10.95, 'blip', 880, .08); ctx.cue(12.15, 'blip', 660, .08);
-    ctx.cue(13.3, 'whoosh', 4.2, .24); ctx.cue(15.8, 'swoosh', .25);
-    ctx.cue(18.0, 'sub', .35); ctx.cue(18.95, 'tick', .7); ctx.cue(19.6, 'riser', 1.4, .1); ctx.cue(20.55, 'tick', .7); ctx.cue(21.4, 'tap', .45); ctx.cue(22.05, 'tick', .7);
+    ctx.cue(11.0, 'whoosh', 1.4, .28); ctx.cue(11.35, 'blip', 880, .08); ctx.cue(13.3, 'blip', 660, .08);
+    ctx.cue(14.4, 'whoosh', 3.6, .24); ctx.cue(15.8, 'swoosh', .25);
+    ctx.cue(18.3, 'sub', .35); ctx.cue(19.1, 'riser', 1.2, .1); ctx.cue(19.5, 'tick', .7); ctx.cue(20.4, 'tick', .7); ctx.cue(20.5, 'tap', .45);
     for (const c of CLICKS) { ctx.cue(c, 'click', .6); ctx.cue(c, 'beep', 520, .05, .05); }
-    ctx.cue(27.6, 'whoosh', 1.0, .18); ctx.cue(27.9, 'riser', 1.3, .08); ctx.cue(29.05, 'chime', 660, .09);
-    ctx.cue(30.4, 'sub', .3); ctx.cue(31.3, 'whoosh', 3.6, .13); ctx.cue(32.1, 'tick', .7); ctx.cue(33.1, 'tick', .7); ctx.cue(34.95, 'chime', 880, .11); ctx.cue(35.1, 'morse', '...', 760, .07, .1);
+    ctx.cue(27.4, 'whoosh', 1.0, .18); ctx.cue(27.7, 'riser', 1.3, .08); ctx.cue(28.9, 'chime', 660, .09);
+    ctx.cue(31.0, 'sub', .3); ctx.cue(31.8, 'whoosh', 3.4, .13); ctx.cue(31.9, 'tick', .7); ctx.cue(32.8, 'tick', .7); ctx.cue(35.25, 'chime', 880, .11); ctx.cue(35.4, 'morse', '...', 760, .07, .1);
     ctx.cue(37.0, 'swoosh', .25);
     { let prev = 0; for (let t = 37.0; t < 42; t += .004) { const p = tape.pressAt(t, TAPE_V); if (p && !prev) ctx.cue(t, 'tick', .9); prev = p; } }
   },

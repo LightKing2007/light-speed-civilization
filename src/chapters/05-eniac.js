@@ -1,6 +1,10 @@
 /* 05 · 钢铁之躯 —— ENIAC（1943–1946）。
    A 档案照片（詹宁斯与比拉斯）→ B 写实复原机房穿行 + 规格卡 → C 真空三极管剖面：灯丝加热、电子流、栅极负压截止（示波器读数）
-   → D 累加器氖灯：十进制环形计数 → 每秒 5000 次加法；一只管子烧断 → 档案照片：更换真空管 → E 插线编程特写 → 档案照片（贝克与斯奈德）。 */
+   → D 累加器氖灯：十进制环形计数 → 每秒 5000 次加法；一只管子烧断 → 档案照片：更换真空管 → E 插线编程特写 → 档案照片（贝克与斯奈德）。
+   标注原则（可读性精修）：每个镜头同一时刻最多 2 个引线标注 + 1 个信息面板；每条标注完整停留 ≥ 3.5 秒、相邻标注错开 ≥ 0.8 秒；
+   面板底色不透明度 .86，主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」，不重复字幕里的数字。
+   真空管剖面原为 C1 / C2 两个镜头，合并成一个连续推近的镜头（13.8–26.0），让「栅极」标注停留得够久、并覆盖「一通一断」整句旁白；
+   累加器镜头相应从 26.0 开始。15.2–16.5 s 仍是「灯丝渐亮、玻璃完整」（第 15 章蒙太奇引用这一段）。 */
 import * as THREE from 'three';
 import { V, ss, win, lerp, clamp, easeIO, easeOut, camPath, applyCam, rng, hash, fmtThin } from '../engine/util.js';
 import { ink } from '../engine/hud.js';
@@ -9,22 +13,29 @@ import { buildRoom } from '../props/05/room.js';
 
 /* ---------- 时间线上的「状态」：全部是 t 的纯函数 ---------- */
 const heat = t => ss(14.3, 16.1, t);                                   // 灯丝加热
-const cutU = t => easeIO(clamp((t - 16.5) / .95));                       // 前半玻璃移开
-const NEG = [[21.35, 23.0], [23.75, 24.3]];                               // 栅极加负压的时间窗
+const cutU = t => easeIO(clamp((t - 16.5) / .95));                       // 前半玻璃移开（第 15 章引用 15.2–16.5 s，此前保持完整）
+const NEG = [[21.6, 23.2], [24.0, 24.5], [25.0, 25.4]];                                         // 栅极加负压的时间窗
 const neg = t => NEG.reduce((m, [a, b]) => Math.max(m, ss(a, a + .1, t) * (1 - ss(b, b + .1, t))), 0);
 const Ia = t => heat(t) * (1 - neg(t - .18));                              // 阳极电流（相对值）
+const D1_T = 26.0;                                                        // 累加器镜头开始（个位从 0 数到 9，再进位）
 const lampValue = t => {                                                  // 主角累加器显示的数
-  if (t < 24.6) return 3141592653;
-  if (t < 27.4) return Math.min(10, Math.floor((t - 24.6) / .24));        // 0→9，再进位成 10
-  const tt = Math.min(t, 35.0) - 27.4, n = Math.floor(5000 * (tt < 1 ? tt * tt / 2 : tt - .5));
+  if (t < D1_T) return 3141592653;
+  if (t < D1_T + 2.8) return Math.min(10, Math.floor((t - D1_T) / .24));  // 0→9，再进位成 10
+  const tt = Math.min(t, 35.0) - (D1_T + 2.8), n = Math.floor(5000 * (tt < 1 ? tt * tt / 2 : tt - .5));
   return (10 + n * 1234567) % 1e10;
 };
-const failK = t => t < 34.35 || t > 36.6 ? 1 : t < 35.0 ? (hash(Math.floor(t * 26)) > .42 ? 1 : .18) * (1 - ss(34.9, 35.0, t) * .5) : 0;
-const flashK = t => t > 34.98 && t < 35.2 ? (1 - ss(35.0, 35.2, t)) * ss(34.98, 35.0, t) : 0;
+const FAIL_T = 34.5;                                                      // 故障管：33.85 起闪烁，34.5 烧断（闪光）
+const failK = t => t < 33.85 || t > 36.6 ? 1 : t < FAIL_T ? (hash(Math.floor(t * 26)) > .42 ? 1 : .18) * (1 - ss(FAIL_T - .1, FAIL_T, t) * .5) : 0;
+const flashK = t => t > FAIL_T - .02 && t < FAIL_T + .2 ? (1 - ss(FAIL_T, FAIL_T + .2, t)) * ss(FAIL_T - .02, FAIL_T, t) : 0;
 const plugU = t => clamp((t - 39.6) / .42) + clamp((t - 40.05) / .7) + clamp((t - 40.78) / .24);
-const KNOB_T = [41.55, 41.8, 42.05];
+const KNOB_T = [41.4, 41.6, 41.8];
 const knobStep = t => 2 + KNOB_T.reduce((s, k) => s + ss(k, k + .07, t), 0);
-const roomState = t => ({ value: lampValue(t), fail: failK(t), flash: flashK(t), plugU: plugU(t), knob: knobStep(t), warm: t > 32 && t < 37 ? .006 : 0, spot: t > 39 ? 22 : 10 });
+const roomState = t => ({ value: lampValue(t), fail: failK(t), flash: flashK(t), plugU: plugU(t), knob: knobStep(t), warm: t > 32 && t < 37 ? .006 : 0, spot: t > 39 ? 32 : 10 });
+/* 屏幕文字的统一样式 */
+const TXT = 'rgba(246,246,242,.97)', TXT2 = 'rgba(238,238,232,.9)';
+const panelBox = (g, x, y, w, h) => { g.fillStyle = 'rgba(8,10,14,.86)'; g.fillRect(x, y, w, h); ink.rect(g, x, y, w, h, 'rgba(235,235,230,.2)', 1); };
+/** 署名条（左下）后面的柔和暗底：画在 2D 层（在署名条文字之下），亮的档案照片上也看得清 */
+const scrim = (g, a = .6) => { g.save(); g.translate(560, 792); g.scale(1, .27); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 660); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(.62, `rgba(0,0,0,${a * .75})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(-680, -680, 1360, 1360); g.restore(); };
 
 export default {
   id: '05', status: 'implemented', slug: 'eniac', title: '钢铁之躯', dur: 46,
@@ -46,7 +57,9 @@ export default {
     /* ================= A · 档案照片：詹宁斯与比拉斯，1946 ================= */
     const phA = await KIT.photoShot('assets/photos/act2/eniac_jennings_bilas.jpg', { from: { x: -.3, y: .3, s: 1.04 }, to: { x: .32, y: .12, s: 1.2 } });
     ctx.shot({ name: '05.A 档案', t0: 0, in: { type: 'dip', dur: .8 }, scene: phA.scene, camera: phA.camera, post: ARCH, update(t, st) { phA.update(st / 8.2); } });
-    ctx.lower({ t0: 3.9, t1: 7.0, name: 'ENIAC', meta: '宾夕法尼亚大学 · 1946 · 贝蒂·詹宁斯（左）与弗朗西丝·比拉斯', credit: '照片：美国陆军 · 公有领域' });
+    // 署名条：完整停留 3.5 s（4.0–7.55），B 溶入时淡出；后面垫一层柔和暗底
+    draw2d({ t0: 3.6, t1: 7.95, fade: .4, draw(g) { scrim(g); } });
+    ctx.lower({ t0: 3.6, t1: 7.95, name: 'ENIAC', meta: '1946 · 贝蒂·詹宁斯（左）与弗朗西丝·比拉斯', credit: '照片：美国陆军 · 公有领域' });
 
     /* ================= B · 复原机房：U 形排列的 40 块面板 ================= */
     const room = await buildRoom(KIT);
@@ -58,25 +71,11 @@ export default {
       [14.7, [-1.22, 1.64, -2.75], [-2.44, 1.8, -3.62], 30],
     ]);
     const B = ctx.shot({ name: '05.B 机房', t0: 7.2, in: { type: 'dissolve', dur: 1.0 }, scene: room.scene, camera: cB,
-      post: { exposure: 1.15, ao: { radius: .5, intensity: 1 }, dof: { focus: 3.5, aperture: .006, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .32 },
+      post: { exposure: 1.28, ao: { radius: .5, intensity: 1 }, dof: { focus: 3.5, aperture: .004, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3 },
       update(t) { applyCam(cB, pathB(t), t, .0015); room.update(t, roomState(t)); B.post.dof.focus = cB.position.distanceTo(H(0, 1.6, 0)) * (t < 11 ? .8 : 1); } });
-    // 规格卡（右侧）
-    const SPEC = [['真空管', 17468, '只'], ['重量', 27, '吨', '约 '], ['功耗', 150, '千瓦'], ['占地', 167, 'm²', '约 '], ['面板', 40, '块 · U 形排列']];
-    draw2d({ t0: 8.0, t1: 13.75, draw(g, t) {
-      const x = 1440, y = 286, w = 380, h = 62 + SPEC.length * 58;
-      g.fillStyle = 'rgba(10,11,12,.74)'; g.fillRect(x - 22, y - 34, w + 44, h);
-      ink.corners(g, x - 22, y - 34, w + 44, h, 14, ink.dim);
-      ink.text(g, 'ENIAC · 1946 · SPEC', x, y - 6, { font: ink.mono(13), color: ink.dim });
-      SPEC.forEach(([k, v, u, pre = ''], i) => {
-        const a = ss(8.3 + i * .32, 8.7 + i * .32, t); if (a <= 0) return; g.save(); g.globalAlpha *= a;
-        const yy = y + 42 + i * 58, n = Math.round(v * easeOut(ss(8.3 + i * .32, 9.5 + i * .32, t)));
-        ink.text(g, k, x, yy, { font: ink.sans(19), color: ink.dim });
-        ink.text(g, pre + fmtThin(n), x + 150, yy + 2, { font: ink.mono(i === 0 ? 30 : 26, 600), color: i === 0 ? ink.accent : ink.white });
-        ink.text(g, u, x + w, yy, { font: ink.sans(16), color: ink.dim, align: 'right' });
-        ink.line(g, [[x, yy + 18], [x + w, yy + 18]], ink.faint, 1); g.restore();
-      });
-    } });
-    ctx.callout({ shot: B, at: () => H(-.05, 1.25, .01), title: '累加器 ×20', sub: '每台存一个 10 位十进制数', t0: 11.3, t1: 13.75, side: 'left', dx: -120, dy: -150 });
+    // 字幕已经念出各项数字，这里不再列规格表；只指出「这一屋子面板就是 ENIAC」和「面板上一排排的真空管」
+    ctx.callout({ shot: B, at: V(-2.44, 2.1, -8.0), title: '40 块面板', sub: '围成 U 形，占满房间', t0: 7.9, t1: 12.4, side: 'right', dx: 150, dy: -120 });
+    ctx.callout({ shot: B, at: () => room.tubeW(1, 6), title: '真空管', sub: '一排排插满面板', t0: 9.2, t1: 13.8, side: 'right', dx: 160, dy: 120 });
 
     /* ================= C · 真空三极管剖面（影棚，1 单位 = 10 cm） ================= */
     const sc = new THREE.Scene();
@@ -108,166 +107,122 @@ export default {
     };
     const setTube = t => { const h = heat(t); tube.setHeat(h); bgT.forEach(b => b.setHeat(h)); tube.setCut(cutU(t)); electrons(t); };
     const focusC = V(0, .58, 0);
+    /* 一个连续镜头：从斜侧方推近（加热 → 剖开 → 阴极 / 阳极），再转到右前方的特写看栅极（原 C1 / C2 合并，去掉中间的硬切） */
     const cC = KIT.cam(30, .02, 60);
-    const pathC1 = camPath([
+    const pathC = camPath([
       [13.8, [1.08, .88, 2.32], [.1, .55, 0], 30],
       [16.4, [.6, .76, 2.08], [.11, .57, 0], 30],
       [18.9, [.2, .64, 1.52], [.1, .6, 0], 30],
-      [21.5, [.12, .63, 1.4], [.1, .6, 0], 30],
+      [21.3, [.33, .65, 1.42], [.08, .62, 0], 28],
+      [26.0, [.25, .64, 1.24], [.07, .62, 0], 28],
     ]);
-    const C1 = ctx.shot({ name: '05.C1 真空管', t0: 13.8, in: { type: 'blur', dur: .9, params: [5] }, scene: sc, camera: cC,
-      post: { exposure: 1.05, ao: { radius: .2, intensity: .8 }, dof: { focus: 2.2, aperture: .016, maxBlur: 10 }, bloom: { strength: .15 }, grade: ctx.grade.studio },
-      update(t) { applyCam(cC, pathC1(t), t, .0012); el.material.uniforms.uSize.value = 2.3; setTube(t); C1.post.dof.focus = cC.position.distanceTo(focusC); } });
-    const cC2 = KIT.cam(28, .02, 60);
-    const pathC2 = camPath([[20.6, [.35, .65, 1.42], [.075, .62, 0], 28], [24.7, [.27, .64, 1.28], [.07, .62, 0], 28]]);
-    const C2 = ctx.shot({ name: '05.C2 栅极', t0: 20.6, in: { type: 'cut' }, scene: sc, camera: cC2,
-      post: { exposure: 1.05, ao: { radius: .2, intensity: .8 }, dof: { focus: 1, aperture: .012, maxBlur: 10 }, bloom: { strength: .15 }, grade: ctx.grade.studio },
-      update(t) { applyCam(cC2, pathC2(t), t, .001); el.material.uniforms.uSize.value = 2.7; setTube(t); C2.post.dof.focus = cC2.position.distanceTo(focusC); } });
+    const C = ctx.shot({ name: '05.C 真空管', t0: 13.8, in: { type: 'blur', dur: .9, params: [5] }, scene: sc, camera: cC,
+      post: { exposure: 1.14, ao: { radius: .2, intensity: .8 }, dof: { focus: 2.2, aperture: .008, maxBlur: 8 }, bloom: { strength: .15 }, grade: ctx.grade.studio },
+      update(t) { applyCam(cC, pathC(t), t, .0011); el.material.uniforms.uSize.value = lerp(2.3, 2.7, ss(19.5, 21.3, t)); setTube(t); C.post.dof.focus = cC.position.distanceTo(focusC); } });
     const { hw } = TUBE.plate, ga = TUBE.grid.a;
-    ctx.callout({ shot: C1, at: V(0, .838, 0), title: '灯丝', sub: '6.3 V 通电 · 发热发光', t0: 14.6, t1: 16.7, side: 'right', dx: 150, dy: -110 });
-    ctx.callout({ shot: C1, at: V(-.012, .5, -.004), title: '阴极 K', sub: '被烧热 · 放出电子', t0: 17.5, t1: 20.6, side: 'left', dx: -150, dy: 90 });
-    ctx.callout({ shot: C1, at: V(hw, .7, -.02), title: '阳极 A', sub: '+250 V · 吸引电子', t0: 17.9, t1: 20.6, side: 'right', dx: 120, dy: -140 });
-    const gCo = ctx.callout({ shot: C2, at: V(-ga, .7, -.004), title: '栅极 G', sub: '0 V · 电子穿过', t0: 20.9, t1: 24.6, side: 'left', dx: -150, dy: -110 });
-    ctx.callout({ shot: C2, at: V(hw, .52, -.02), title: '阳极 A', sub: '+250 V', t0: 21.0, t1: 24.6, side: 'right', dx: 110, dy: 120 });
+    // 三个电极依次出现（间隔 ≥ 0.8 s），同一时刻最多两个；每个完整停留 ≥ 3.5 s
+    ctx.callout({ shot: C, at: V(-.012, .5, -.004), title: '阴极', sub: '灯丝把它烧热，放出电子', t0: 17.0, t1: 21.5, side: 'left', dx: -150, dy: 90 });
+    ctx.callout({ shot: C, at: V(hw, .7, -.02), title: '阳极（正电）', sub: '把电子吸过去', t0: 17.8, t1: 26.0, side: 'right', dx: 120, dy: -150 });
+    ctx.callout({ shot: C, at: V(-ga, .7, -.004), title: '栅极', sub: '加负电压，就挡住电子', t0: 21.5, t1: 26.0, side: 'left', dx: -150, dy: -110 });
     // 栅极 / 阳极的电荷符号（投影到屏幕）
-    const signs = (g, t, project, plus) => {
+    const signs = (g, t, project) => {
       const n = neg(t);
       for (const y of [.5, .6, .7]) for (const s of [-1, 1]) {
-        if (plus) { const p = project(V(s * (hw - .006), y, -.02)); if (p) ink.text(g, '+', p.x - s * 16, p.y + 7, { font: ink.mono(22, 700), color: ink.accent, align: 'center' }); }
-        if (n > .02) { const q = project(V(s * ga, y + .05, -.004)); if (q) { g.save(); g.globalAlpha *= n; ink.text(g, '−', q.x, q.y + 7, { font: ink.mono(24, 700), color: ink.warn, align: 'center' }); g.restore(); } }
+        const p = project(V(s * (hw - .006), y, -.02)); if (p) ink.text(g, '+', p.x - s * 16, p.y + 8, { font: ink.mono(26, 700), color: ink.accent, align: 'center' });
+        if (n > .02) { const q = project(V(s * ga, y + .05, -.004)); if (q) { g.save(); g.globalAlpha *= n; ink.text(g, '−', q.x, q.y + 8, { font: ink.mono(28, 700), color: ink.warn, align: 'center' }); g.restore(); } }
       }
     };
-    draw2d({ shot: C1, t0: 18.2, t1: 20.6, draw: (g, t, a, project) => signs(g, t, project, true) });
-    draw2d({ shot: C2, t0: 20.6, t1: 24.6, draw: (g, t, a, project) => { signs(g, t, project, true); gCo.setText('栅极 G', neg(t) > .5 ? '−20 V · 电子被挡回' : '0 V · 电子穿过'); } });
-    // 右侧测量面板：三极管电路图（电子沿回路流动、电流表指针）+ Vg / Ia 示波器 + 通断
-    const phiIa = t => { let s = 0; for (let u = 14; u < t; u += .04) s += Ia(Math.min(u + .02, t)) * Math.min(.04, t - u); return s; };   // ∫Ia dt：电子走过的「路程」
-    const polyAt = (P, d) => { for (let i = 1; i < P.length; i++) { const [x0, y0] = P[i - 1], [x1, y1] = P[i], L = Math.hypot(x1 - x0, y1 - y0); if (d <= L) return [x0 + (x1 - x0) * d / L, y0 + (y1 - y0) * d / L]; d -= L; } return P[P.length - 1]; };
-    const polyLen = P => P.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - P[i][0], p[1] - P[i][1]), 0);
-    const circuit = (g, t, x, y) => {
-      const I = Ia(t), n = neg(t), hk = heat(t), cx = x + 132, cy = y + 104, R = 54, top = y + 22, bot = y + 190, bx = x + 296, gx = x + 30, mx = x + 222;
-      g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
-      const wire = ink.dim;
-      // 回路导线
-      ink.line(g, [[cx, cy - 28], [cx, top], [mx - 15, top]], wire, 1.3); ink.line(g, [[mx + 15, top], [bx, top], [bx, cy - 7]], wire, 1.3);
-      ink.line(g, [[bx, cy + 7], [bx, bot], [gx, bot], [gx, cy + 50]], wire, 1.3); ink.line(g, [[cx + 20, cy + 30], [cx + 20, bot]], wire, 1.3);
-      ink.line(g, [[cx - 26, cy], [gx, cy], [gx, cy + 34]], n > .5 ? ink.warn : wire, 1.3);
-      // 管壳 + 电极
-      g.strokeStyle = 'rgba(235,235,230,.7)'; g.lineWidth = 1.4; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
-      ink.line(g, [[cx - 22, cy - 28], [cx + 22, cy - 28]], ink.white, 3.2);
-      g.setLineDash([4, 4]); ink.line(g, [[cx - 26, cy], [cx + 26, cy]], n > .5 ? ink.warn : ink.white, 1.8); g.setLineDash([]);
-      ink.line(g, [[cx - 20, cy + 30], [cx - 20, cy + 24], [cx + 20, cy + 24], [cx + 20, cy + 30]], ink.white, 2);
-      ink.line(g, [[cx - 18, cy + 50], [cx - 9, cy + 37], [cx, cy + 50]], `rgba(255,122,48,${.25 + .75 * hk})`, 2);
-      ink.line(g, [[cx - 18, cy + 50], [cx - 18, cy + 70]], wire, 1.2); ink.line(g, [[cx, cy + 50], [cx, cy + 70]], wire, 1.2);
-      ink.text(g, '灯丝 6.3 V', cx - 26, cy + 72, { font: ink.mono(11), color: ink.dim, align: 'right' });
-      ink.text(g, 'A', cx + 30, cy - 23, { font: ink.mono(13, 600), color: ink.dim }); ink.text(g, 'G', cx + 32, cy + 5, { font: ink.mono(13, 600), color: n > .5 ? ink.warn : ink.dim }); ink.text(g, 'K', cx + 28, cy + 24, { font: ink.mono(13, 600), color: ink.dim });
-      // 高压电池 B+（长板 = 正极）
-      ink.line(g, [[bx - 14, cy - 7], [bx + 14, cy - 7]], ink.white, 2); ink.line(g, [[bx - 7, cy + 7], [bx + 7, cy + 7]], ink.white, 3);
-      ink.text(g, '+250 V', bx + 20, cy - 2, { font: ink.mono(13, 600), color: ink.accent }); ink.text(g, 'B+', bx + 20, cy + 16, { font: ink.mono(11), color: ink.dim });
-      // 栅极偏压（开关：0 V ↔ −20 V）
-      if (n > .5) { ink.line(g, [[gx - 7, cy + 34], [gx + 7, cy + 34]], ink.warn, 3); ink.line(g, [[gx - 14, cy + 48], [gx + 14, cy + 48]], ink.warn, 2); }
-      else ink.line(g, [[gx, cy + 34], [gx, cy + 50]], wire, 1.3);
-      ink.text(g, 'Vg', gx - 12, cy - 8, { font: ink.mono(12, 600), color: n > .5 ? ink.warn : ink.dim, align: 'left' });
-      // 电流表
-      g.strokeStyle = ink.white; g.lineWidth = 1.4; g.beginPath(); g.arc(mx, top, 15, 0, 7); g.stroke();
-      const na = -1.05 + 2.1 * clamp(I); g.strokeStyle = ink.accent; g.lineWidth = 1.6; g.beginPath(); g.moveTo(mx, top + 8); g.lineTo(mx + Math.sin(na) * 15, top + 8 - Math.cos(na) * 15); g.stroke();
-      ink.text(g, 'mA', mx, top + 30, { font: ink.mono(11), color: ink.dim, align: 'center' });
-      // 电子：阴极 → 阳极 → 电流表 → 电池正极 → 负极 → 回到阴极
-      const loop = [[cx, cy + 20], [cx, cy - 28], [cx, top], [bx, top], [bx, bot], [cx + 20, bot], [cx + 20, cy + 30], [cx + 6, cy + 22]], LL = polyLen(loop), ph = phiIa(t) * 64;
-      g.fillStyle = ink.cyan;
-      for (let d = ((ph % 22) + 22) % 22; d < LL; d += 22) { const [px, py] = polyAt(loop, d); const inside = Math.hypot(px - cx, py - cy) < R; g.globalAlpha = (inside ? 1 : .8) * clamp(I * 1.4) * (g._a ?? 1); g.beginPath(); g.arc(px, py, 2.4, 0, 7); g.fill(); }
-      g.restore();
-    };
-    draw2d({ t0: 17.5, t1: 24.6, draw(g, t, a) {
-      const x = 1450, y = 196, w = 370, H2 = 588;
-      g.fillStyle = 'rgba(8,9,10,.72)'; g.fillRect(x - 20, y - 30, w + 40, H2); ink.corners(g, x - 20, y - 30, w + 40, H2, 14, ink.dim);
-      ink.text(g, 'MEASURE · TRIODE CIRCUIT', x, y - 6, { font: ink.mono(13), color: ink.dim });
-      g._a = a; circuit(g, t, x, y);
-      const vg = -20 * neg(t), ia = 8.2 * Ia(t), y2 = y + 238;
-      ink.line(g, [[x, y2 - 26], [x + w, y2 - 26]], ink.faint, 1);
-      ink.text(g, '栅极电压 Vg', x, y2, { font: ink.sans(18) });
-      ink.text(g, (vg < -.05 ? '−' : '') + Math.abs(vg).toFixed(0) + ' V', x + w, y2 + 2, { font: ink.mono(24, 600), color: vg < -1 ? ink.warn : ink.white, align: 'right' });
-      ink.scope(g, x, y2 + 14, w, 66, u => .55 - 1.1 * neg(t - 4.5 * (1 - u)), { color: ink.warn, lw: 1.6 });
-      ink.text(g, '阳极电流 Ia', x, y2 + 118, { font: ink.sans(18) });
-      ink.text(g, ia.toFixed(1) + ' mA', x + w, y2 + 120, { font: ink.mono(24, 600), color: ia > .5 ? ink.accent : ink.white, align: 'right' });
-      ink.scope(g, x, y2 + 132, w, 66, u => 1.1 * Ia(t - 4.5 * (1 - u)) - .55, { color: ink.accent, lw: 1.6 });
-      ink.text(g, '−4.5 s', x, y2 + 214, { font: ink.mono(11), color: ink.dim }); ink.text(g, 'NOW', x + w, y2 + 214, { font: ink.mono(11), color: ink.dim, align: 'right' });
+    draw2d({ shot: C, t0: 18.0, t1: 26.0, draw: (g, t, a, project) => signs(g, t, project) });
+    // 右侧面板：标题就是结论（导通 / 截止），下面两条示波器曲线：栅极电压一变负，阳极电流随即归零
+    draw2d({ t0: 18.6, t1: 26.0, draw(g, t) {
+      const X0 = 1416, Y0 = 210, W = 456, Hh = 430, x = X0 + 28, w = W - 56;
+      panelBox(g, X0, Y0, W, Hh);
       const on = Ia(t) > .5;
-      ink.text(g, on ? '通' : '断', x, y2 + 290, { font: ink.sans(58, 700), color: on ? ink.accent : ink.warn });
-      ink.text(g, on ? 'ON · 电流导通' : 'OFF · 电流截止', x + 78, y2 + 268, { font: ink.mono(16, 600), color: on ? ink.accent : ink.warn });
-      ink.text(g, on ? '栅极 0 V：电子穿过栅丝' : '栅极 −20 V：电子被推回', x + 78, y2 + 292, { font: ink.sans(14), color: ink.dim });
+      ink.text(g, on ? '通：电流流过' : '断：电流被切断', x, Y0 + 58, { font: ink.sans(34, 700), color: on ? ink.accent : ink.warn });
+      ink.line(g, [[x, Y0 + 84], [x + w, Y0 + 84]], 'rgba(235,235,230,.35)', 1);
+      const vg = -20 * neg(t), ia = 8.2 * Ia(t), y2 = Y0 + 136;
+      ink.text(g, '栅极电压', x, y2, { font: ink.sans(24), color: TXT2 });
+      ink.text(g, (vg < -.05 ? '−' : '') + Math.abs(vg).toFixed(0) + ' V', x + w, y2 + 2, { font: ink.mono(32, 600), color: vg < -1 ? ink.warn : TXT, align: 'right' });
+      ink.scope(g, x, y2 + 18, w, 80, u => .55 - 1.1 * neg(t - 4.5 * (1 - u)), { color: ink.warn, lw: 2.2 });
+      const y3 = y2 + 160;
+      ink.text(g, '阳极电流', x, y3, { font: ink.sans(24), color: TXT2 });
+      ink.text(g, ia.toFixed(1) + ' mA', x + w, y3 + 2, { font: ink.mono(32, 600), color: ia > .5 ? ink.accent : TXT, align: 'right' });
+      ink.scope(g, x, y3 + 18, w, 80, u => 1.1 * Ia(t - 4.5 * (1 - u)) - .55, { color: ink.accent, lw: 2.2 });
     } });
 
     /* ================= D1 · 累加器：十进制环形计数 → 每秒 5000 次加法 ================= */
     const cD = KIT.cam(30, .01, 40);
     const P = (x, y, z) => { const v = H(x, y, z); return [v.x, v.y, v.z]; };
     const pathD = camPath([
-      [24.6, P(.34, 1.19, .9), P(.235, 1.185, 0), 30],
-      [27.2, P(.32, 1.2, .93), P(.228, 1.19, 0), 30],
-      [29.6, P(.06, 1.46, 1.46), P(.16, 1.31, 0), 34],
+      [D1_T, P(.34, 1.19, .9), P(.235, 1.185, 0), 30],
+      [D1_T + 2.6, P(.32, 1.2, .93), P(.228, 1.19, 0), 30],
+      [D1_T + 4.8, P(.06, 1.46, 1.46), P(.16, 1.31, 0), 34],
       [33.2, P(-.04, 1.48, 1.32), P(.15, 1.33, 0), 34],
     ]);
-    const D1 = ctx.shot({ name: '05.D1 计数', t0: 24.6, in: { type: 'cut' }, scene: room.scene, camera: cD,
-      post: { exposure: 1.2, ao: { radius: .06, intensity: .9 }, dof: { focus: .6, aperture: .004, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .34 },
+    const D1 = ctx.shot({ name: '05.D1 计数', t0: D1_T, in: { type: 'cut' }, scene: room.scene, camera: cD,
+      post: { exposure: 1.36, ao: { radius: .06, intensity: .9 }, dof: { focus: .6, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3 },
       update(t) { applyCam(cD, pathD(t), t, .0008); room.update(t, roomState(t)); D1.post.dof.focus = cD.position.distanceTo(H(.15, 1.25, 0)); } });
+    // 个位这一列：角框 + 一个标注（标注锚在列中间、文字框不随亮灯移动）
     const onesBox = () => new THREE.Box3().setFromPoints([room.lampW(9, 0), room.lampW(9, 9)]).expandByScalar(.016);
-    ctx.bracket({ shot: D1, box: onesBox(), label: '个位 · 0–9', t0: 24.85, t1: 27.6 });
-    ctx.callout({ shot: D1, at: t => room.lampW(9, lampValue(t) % 10), title: '环形计数器', sub: 'ENIAC：十个开关一圈，记一位十进制数', t0: 25.0, t1: 27.4, side: 'right', dx: 150, dy: -40 });
-    ctx.bracket({ shot: D1, box: new THREE.Box3().setFromPoints([room.lampW(0, 0), room.lampW(9, 9)]).expandByScalar(.02), label: '10 位十进制数', t0: 29.4, t1: 32.9 });
-    ctx.stat({ t0: 27.4, t1: 32.9, fmt: p => fmtThin(5000 * p), unit: '次加法 / 秒', label: 'ENIAC 运算速度', src: '1946 年公开演示', dur: 1.6 });
-    // 弹道对比
-    draw2d({ t0: 29.5, t1: 32.9, draw(g, t) {
-      const x = 110, y = 178, w = 560;
-      g.fillStyle = 'rgba(8,9,10,.74)'; g.fillRect(x - 24, y - 40, w + 48, 210); ink.corners(g, x - 24, y - 40, w + 48, 210, 12, ink.dim);
-      ink.text(g, '计算一条炮弹弹道', x, y - 10, { font: ink.sans(18) });
-      // 小弹道曲线
-      const k = ss(29.7, 30.0, t); g.strokeStyle = ink.dim; g.lineWidth = 1.2; g.setLineDash([3, 4]); g.beginPath();
-      for (let i = 0; i <= 40 * k; i++) { const u = i / 40, px = x + 300 + u * 250, py = y - 2 - Math.sin(Math.PI * u) * 26 * (1 - .25 * u); i ? g.lineTo(px, py) : g.moveTo(px, py); } g.stroke(); g.setLineDash([]);
-      const bar = (yy, frac, label, val, col) => { ink.text(g, label, x, yy, { font: ink.sans(16), color: ink.dim }); g.fillStyle = 'rgba(235,235,230,.08)'; g.fillRect(x, yy + 12, w, 14); g.fillStyle = col; g.fillRect(x, yy + 12, Math.max(2, w * frac), 14); ink.text(g, val, x + w, yy, { font: ink.mono(17, 600), color: col, align: 'right' }); };
-      bar(y + 40, ss(29.7, 31.6, t), '人工 · 手摇计算器', '十几个小时', ink.white);
-      bar(y + 100, ss(29.7, 29.85, t) / 1440 * 6, 'ENIAC', '约 30 秒', ink.accent);
+    ctx.bracket({ shot: D1, box: onesBox(), label: '', t0: D1_T + .3, t1: D1_T + 4.8 });
+    ctx.callout({ shot: D1, at: room.lampW(9, 4.5).add(V(.02, 0, 0)), title: '累加器的一位', sub: '10 只灯轮流亮，记 0–9', t0: D1_T + .3, t1: D1_T + 4.8, side: 'right', dx: 150, dy: -60 });
+    // 左上面板：标题就是速度；下面用两根条对比「算一条弹道」要多久（30 秒 ≈ 十几个小时的千分之一，条宽按比例、至少 4 px）
+    draw2d({ t0: 28.8, t1: 33.0, draw(g, t) {
+      const X0 = 80, Y0 = 120, W = 620, Hh = 330, x = X0 + 30, w = W - 60;
+      panelBox(g, X0, Y0, W, Hh);
+      const n = Math.round(5000 * easeOut(ss(28.9, 29.8, t)));
+      g.font = ink.mono(50, 700); const nw = g.measureText(fmtThin(n)).width;
+      ink.text(g, fmtThin(n), x, Y0 + 70, { font: ink.mono(50, 700), color: ink.accent });
+      ink.text(g, '次加法 / 秒', x + Math.max(nw, 150) + 16, Y0 + 68, { font: ink.sans(28, 500), color: TXT });
+      ink.line(g, [[x, Y0 + 98], [x + w, Y0 + 98]], 'rgba(235,235,230,.35)', 1);
+      ink.text(g, '算一条炮弹弹道：', x, Y0 + 142, { font: ink.sans(24), color: TXT2 });
+      const bar = (yy, frac, label, val, col) => {
+        ink.text(g, label, x, yy, { font: ink.sans(24, 500), color: TXT }); ink.text(g, val, x + w, yy, { font: ink.sans(26, 600), color: col, align: 'right' });
+        g.fillStyle = 'rgba(235,235,230,.12)'; g.fillRect(x, yy + 14, w, 18); g.fillStyle = col; g.fillRect(x, yy + 14, Math.max(4, w * frac), 18);
+      };
+      bar(Y0 + 196, ss(29.9, 31.8, t), '人工（手摇计算器）', '十几个小时', TXT);
+      bar(Y0 + 270, ss(29.9, 30.05, t) / 1440, 'ENIAC', '约 30 秒', ink.accent);
     } });
 
     /* ================= D2 · 一只管子烧断 ================= */
     const cE = KIT.cam(32, .01, 40);
-    const pathE = camPath([[33.0, P(.36, 1.955, .175), P(.05, 1.905, .028), 32], [37.2, P(.325, 1.94, .2), P(.03, 1.905, .028), 32]]);
+    // 机位对准那只会烧断的管子（画面中央、在焦内）并缓慢推近；它闪烁、闪光、熄灭，画面本身说明「坏了一只」，不再加标注
+    const pathE = camPath([[33.0, P(.36, 1.955, .175), P(.11, 1.905, .028), 32], [36.1, P(.31, 1.94, .175), P(.125, 1.905, .028), 31]]);
     const D2 = ctx.shot({ name: '05.D2 故障', t0: 33.0, in: { type: 'cut' }, scene: room.scene, camera: cE,
-      post: { exposure: 1.15, ao: { radius: .03, intensity: .8 }, dof: { focus: .26, aperture: .0016, maxBlur: 10 }, bloom: { strength: .14 }, grade: ctx.grade.warm, vignette: .36 },
-      update(t) { applyCam(cE, pathE(t), t, .0006); room.update(t, roomState(t)); D2.post.dof.focus = cE.position.distanceTo(room.tubeW(3, 10)); } });
-    const [fk, fj] = room.FAIL;
-    ctx.callout({ shot: D2, at: room.tubeW(3, 12), title: '灯丝常亮', sub: '17 468 只同时发热', t0: 33.4, t1: 34.9, side: 'left', dx: -130, dy: -150 });
-    ctx.callout({ shot: D2, at: room.tubeW(fk, fj).add(V(0, .012, 0)), title: '灯丝烧断', sub: '一只坏管 → 整机停摆', t0: 35.1, t1: 36.6, side: 'left', dx: -120, dy: -265, style: 'warn' });
+      post: { exposure: 1.32, ao: { radius: .03, intensity: .8 }, dof: { focus: .26, aperture: .0016, maxBlur: 8 }, bloom: { strength: .14 }, grade: ctx.grade.warm, vignette: .32 },
+      update(t) { applyCam(cE, pathE(t), t, .0006); room.update(t, roomState(t)); D2.post.dof.focus = cE.position.distanceTo(room.tubeW(...room.FAIL)); } });
 
     /* ================= D3 · 档案照片：更换真空管 ================= */
     const phD = await KIT.photoShot('assets/photos/act2/eniac_changing_tube.jpg', { from: { x: .25, y: -.1, s: 1.04 }, to: { x: -.1, y: -.25, s: 1.16 } });
-    ctx.shot({ name: '05.D3 换管', t0: 36.4, in: { type: 'dissolve', dur: .8 }, scene: phD.scene, camera: phD.camera, post: ARCH, update(t, st) { phD.update(st / 3.6); } });
-    ctx.lower({ t0: 36.9, t1: 39.1, name: '更换真空管', meta: 'ENIAC · 技术员格伦·贝克检修管子', credit: '照片：美国陆军（M. Weik《The ENIAC Story》）· 公有领域' });
+    ctx.shot({ name: '05.D3 换管', t0: 35.3, in: { type: 'dissolve', dur: .8 }, scene: phD.scene, camera: phD.camera, post: ARCH, update(t, st) { phD.update(st / 4.8); } });
+    draw2d({ t0: 35.5, t1: 39.8, fade: .4, draw(g) { scrim(g); } });
+    ctx.lower({ t0: 35.5, t1: 39.8, name: '更换真空管', meta: 'ENIAC · 技术员格伦·贝克检修管子', credit: '照片：美国陆军（M. Weik《The ENIAC Story》）· 公有领域' });
 
-    /* ================= E1 · 插线、拨开关 ================= */
+    /* ================= E1 · 插线、拨开关（画面自明，不加标注） ================= */
     const cF = KIT.cam(30, .01, 40);
     const pathF = camPath([
-      [39.2, P(.30, .78, .56), P(.0, .64, 0), 30],
-      [40.8, P(.32, .79, .54), P(.02, .645, 0), 30],
-      [41.5, P(.24, .9, .5), P(.0, .86, 0), 30],
-      [43.4, P(.22, .92, .46), P(.0, .875, 0), 30],
+      [39.4, P(.30, .78, .56), P(.0, .64, 0), 30],
+      [40.9, P(.32, .79, .54), P(.02, .645, 0), 30],
+      [41.35, P(.24, .9, .5), P(.0, .86, 0), 30],
+      [42.7, P(.22, .92, .46), P(.0, .875, 0), 30],
     ]);
-    const E1 = ctx.shot({ name: '05.E1 插线', t0: 39.2, in: { type: 'dissolve', dur: .7 }, scene: room.scene, camera: cF,
-      post: { exposure: 1.45, ao: { radius: .04, intensity: .9 }, dof: { focus: .5, aperture: .003, maxBlur: 9 }, grade: ctx.grade.warm, vignette: .34 },
-      update(t) { applyCam(cF, pathF(t), t, .0007); room.update(t, roomState(t)); E1.post.dof.focus = cF.position.distanceTo(t < 41.3 ? room.plugW(plugU(t)) : room.knobW(4)); } });
-    ctx.callout({ shot: E1, at: t => room.plugW(plugU(t)), title: '插线 = 程序', sub: '电缆决定数据流向哪里', t0: 39.5, t1: 41.3, side: 'right', dx: 140, dy: -120 });
-    ctx.callout({ shot: E1, at: room.knobW(4), title: '拨开关', sub: '设定常数与重复次数', t0: 41.45, t1: 42.7, side: 'right', dx: 150, dy: -110 });
+    const E1 = ctx.shot({ name: '05.E1 插线', t0: 39.4, in: { type: 'dissolve', dur: .7 }, scene: room.scene, camera: cF,
+      post: { exposure: 1.7, ao: { radius: .04, intensity: .9 }, dof: { focus: .5, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3 },
+      update(t) { applyCam(cF, pathF(t), t, .0007); room.update(t, roomState(t)); E1.post.dof.focus = cF.position.distanceTo(t < 41.1 ? room.plugW(plugU(t)) : room.knobW(4)); } });
 
     /* ================= E2 · 档案照片：贝克与斯奈德编程 ================= */
     const phE = await KIT.photoShot('assets/photos/act2/eniac_beck_snyder.jpg', { from: { x: -.1, y: 0, s: 1.03 }, to: { x: .28, y: .06, s: 1.16 } });
-    ctx.shot({ name: '05.E2 编程', t0: 42.6, in: { type: 'dissolve', dur: .8 }, scene: phE.scene, camera: phE.camera, post: ARCH, update(t, st) { phE.update(st / 4.4); } });
-    ctx.lower({ t0: 43.0, t1: 45.8, name: 'ENIAC', meta: '弹道研究实验室（阿伯丁）· 约 1947–1955 · 格伦·贝克与贝蒂·斯奈德', credit: '照片：美国陆军 · 公有领域' });
+    ctx.shot({ name: '05.E2 编程', t0: 41.9, in: { type: 'dissolve', dur: .8 }, scene: phE.scene, camera: phE.camera, post: ARCH, update(t, st) { phE.update(st / 4.1); } });
+    draw2d({ t0: 41.7, t1: 46.0, fade: .4, draw(g) { scrim(g); } });
+    ctx.lower({ t0: 41.7, t1: 46.0, name: 'ENIAC', meta: '约 1947–1955 · 格伦·贝克与贝蒂·斯奈德', credit: '照片：美国陆军 · 公有领域' });
 
     /* ================= 音效 ================= */
     ctx.cue(7.3, 'whoosh', 1.1, .25); ctx.cue(9.6, 'relay', .25); ctx.cue(11.1, 'relay', .2); ctx.cue(12.4, 'relay', .22);
     ctx.cue(13.8, 'swoosh', .35); ctx.cue(14.4, 'riser', 1.7, .25); ctx.cue(16.5, 'whoosh', .9, .35);
     for (const [a, b] of NEG) { ctx.cue(a, 'click', .55); ctx.cue(b, 'click', .45); }
-    for (let k = 0; k <= 10; k++) ctx.cue(24.6 + k * .24, 'tick', .32);
-    ctx.cue(27.4, 'riser', 1.2, .25); ctx.cue(29.7, 'blip', 880, .2);
-    ctx.cue(34.4, 'glitch', .25); ctx.cue(35.0, 'spark', .45);
+    for (let k = 0; k <= 10; k++) ctx.cue(D1_T + k * .24, 'tick', .32);
+    ctx.cue(D1_T + 2.8, 'riser', 1.2, .25); ctx.cue(29.9, 'blip', 880, .2);
+    ctx.cue(33.9, 'glitch', .25); ctx.cue(FAIL_T, 'spark', .45);
     ctx.cue(39.62, 'clack', .55); ctx.cue(40.98, 'clack', .7); for (const k of KNOB_T) ctx.cue(k, 'click', .5);
   },
 };

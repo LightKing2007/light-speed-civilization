@@ -194,6 +194,11 @@ export function makePhone(KIT, { variant = 'black', screen = null, glass = 'over
     setXray(k) {
       dispMat.opacity = 1 - .9 * k; dispMat.emissiveIntensity = screenK * (1 - k * .96); backing.material.opacity = 1 - .93 * k;
       backing.visible = k < .99; disp.visible = k < .995; dispMat.depthWrite = k < .05; backing.material.depthWrite = k < .05;
+      // 只有真的在「透视」时才走透明通道：后期的 GTAO 会把透明网格当成不存在，
+      // 屏幕若一直标成 transparent，机身里的摄像头模组、主板元件的遮蔽就会印到屏幕上，看起来像屏幕是透明的
+      const tr = k > .001;
+      if (dispMat.transparent !== tr) { dispMat.transparent = tr; dispMat.needsUpdate = true; }
+      if (backing.material.transparent !== tr) { backing.material.transparent = tr; backing.material.needsUpdate = true; }
     },
     setExplode(e, { spread = 1 } = {}) {
       const s = spread * e;
