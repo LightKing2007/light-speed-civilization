@@ -98,7 +98,7 @@ export default {
         const c = pathD(t); applyCam(camD, c, t, .0016);
         shD.post.dof.focus = camD.position.distanceTo(c.l);
         nyScreen(t);
-        D.phone.setXray(ss(5.3, 6.1, t));
+        D.phone.setXray(0);   // 屏幕始终不透明（之前的「透视」看起来像穿帮）；天线位置用标注指出
         radiiD = D.waves.update(t, { center: antW, t0: 5.55, speed: .3, lambda: .086, maxR: .62 });
       },
     });

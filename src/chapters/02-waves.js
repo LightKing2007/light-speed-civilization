@@ -49,7 +49,7 @@ export default {
     const cB1 = KIT.cam(30);
     const pB1 = camPath([[6.05, [-.47, .27, .66], [-.69, .115, 0], 30], [9.3, [-.6, .235, .6], [-.72, .12, 0], 29]]);
     const shB1 = ctx.shot({ t0: 6.05, name: 'B1 法拉第', in: { type: 'dissolve', dur: .8 }, scene: BN.scene, camera: cB1,
-      post: { exposure: 1.0, ao: { radius: .04, intensity: 1 }, dof: { focus: .65, aperture: .012, maxBlur: 10 }, grade: ctx.grade.studio, vignette: .34 },
+      post: { exposure: 1.0, ao: { radius: .04, intensity: 1 }, dof: { focus: .65, aperture: .003, maxBlur: 6 }, grade: ctx.grade.studio, vignette: .34 },
       update(t) { BN.update(t); const c = pB1(t); applyCam(cB1, c, t, .0006); this.post.dof.focus = cB1.position.distanceTo(BN.loopC); } });
     ctx.callout({ shot: shB1, at: BN.loopC.clone().add(V(0, .095, 0)), t0: 6.8, t1: 9.3, side: 'right', dx: 120, dy: -80, code: 'FARADAY · 1831', title: '变化的磁场 → 电场', sub: '感应电动势 ε = −dΦB/dt' });
     ctx.callout({ shot: shB1, at: t => BN.magnet.position.clone().add(V(-.05, .016, 0)), t0: 6.4, t1: 9.3, side: 'left', dx: 90, dy: -110, title: '条形磁铁', sub: 'N 端插入 → 磁通增加' });
@@ -65,7 +65,7 @@ export default {
     const cB1b = KIT.cam(30);
     const pB1b = camPath([[9.3, [.66, .25, .6], [.55, .125, 0], 30], [12.3, [.56, .215, .5], [.55, .13, 0], 29]]);
     const shB1b = ctx.shot({ t0: 9.3, name: "B1' 麦克斯韦", in: { type: 'cut' }, scene: BN.scene, camera: cB1b,
-      post: { exposure: 1.0, ao: { radius: .04, intensity: 1 }, dof: { focus: .6, aperture: .012, maxBlur: 10 }, grade: ctx.grade.studio, vignette: .34 },
+      post: { exposure: 1.0, ao: { radius: .04, intensity: 1 }, dof: { focus: .6, aperture: .003, maxBlur: 6 }, grade: ctx.grade.studio, vignette: .34 },   // 景深收小：电容板、电场线、磁场环都要清楚
       update(t) { BN.update(t); const c = pB1b(t); applyCam(cB1b, c, t, .0006); this.post.dof.focus = cB1b.position.distanceTo(BN.capC); } });
     ctx.callout({ shot: shB1b, at: BN.capC.clone().add(V(0, .12, 0)), t0: 9.75, t1: 12.25, side: 'right', dx: 120, dy: -60, code: 'MAXWELL · 1861', title: '变化的电场 → 磁场', sub: '位移电流 ε₀·dΦE/dt' });
     ctx.draw2d({ shot: shB1b, t0: 9.5, t1: 12.25, draw(g, t, a, P) {

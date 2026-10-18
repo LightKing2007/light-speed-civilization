@@ -87,14 +87,15 @@ export async function buildStudy(KIT) {
   // ---- 论文（四开本单行本：首页 + 方程页 + 下面一叠纸） ----
   const paperMat = await KIT.pbr('acg_paper006_aged_paper', { repeat: 1, extra: { roughness: .92 } }); paperMat.color.setRGB(1.06, 1.0, .9);
   const PW = .215, PH = .28;
-  const sheetGeo = () => { const g = new THREE.PlaneGeometry(PW, PH, 24, 24); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) / PW + .5, y = p.getY(i) / PH + .5; p.setZ(i, .006 * Math.pow(Math.max(0, x - .7) / .3, 2) * Math.pow(Math.max(0, .35 - y) / .35, 1.5) + .0008 * Math.sin(y * 9)); } g.computeVertexNormals(); return g; };
+  const sheetGeo = () => { const g = new THREE.PlaneGeometry(PW, PH, 24, 24); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) / PW + .5, y = p.getY(i) / PH + .5; p.setZ(i, .006 * Math.pow(Math.max(0, x - .7) / .3, 2) * Math.pow(Math.max(0, .35 - y) / .35, 1.5) + .0004 * (1 + Math.sin(y * 9))); } g.computeVertexNormals(); return g; };
   const inkMat = tex => new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: .75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const paper = new THREE.Group(); paper.position.set(-.05, .004, -.01); paper.rotation.y = .1; s.add(paper);
-  const stack = mesh(KIT.rbox(PW - .002, .004, PH - .002, .0008, 1), paperMat); stack.position.y = -.002; paper.add(stack);
-  const p2 = new THREE.Group(); p2.position.set(.06, .0006, -.05); p2.rotation.y = -.16; paper.add(p2);
+  // 层次都在皮垫顶面之上、彼此留出空隙：纸面的起伏只向上（不会插进下面那张纸或纸垛），避免穿模和闪烁
+  const stack = mesh(KIT.rbox(PW - .002, .004, PH - .002, .0008, 1), paperMat); stack.position.y = .0022; paper.add(stack);
+  const p2 = new THREE.Group(); p2.position.set(.06, .0046, -.05); p2.rotation.y = -.16; paper.add(p2);
   const s2 = mesh(sheetGeo(), paperMat); s2.rotation.x = -Math.PI / 2; p2.add(s2);
   const i2 = mesh(sheetGeo(), inkMat(eqPage(KIT)), { cast: false }); i2.rotation.x = -Math.PI / 2; i2.position.y = .0003; p2.add(i2);
-  const p1 = new THREE.Group(); p1.position.set(0, .0014, 0); paper.add(p1);
+  const p1 = new THREE.Group(); p1.position.set(0, .0068, 0); paper.add(p1);
   const s1 = mesh(sheetGeo(), paperMat); s1.rotation.x = -Math.PI / 2; p1.add(s1);
   const i1 = mesh(sheetGeo(), inkMat(titlePage(KIT)), { cast: false }); i1.rotation.x = -Math.PI / 2; i1.position.y = .0003; p1.add(i1);
 
