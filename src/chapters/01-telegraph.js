@@ -101,7 +101,8 @@ export default {
     // ---- A1 电键特写（0–4.0）：画面左 40% 留给章节卡 ----
     const cA1 = KIT.cam(26);
     const pA1 = camPath([[0, [.27, .105, .2], [-.035, .03, .0], 26], [4.4, [.215, .082, .158], [-.03, .03, .005], 25]]);
-    const shA1 = ctx.shot({ t0: 0, name: 'A1 电键', in: { type: 'dissolve', dur: 1.2 }, scene: sA, camera: cA1,
+    // 焦点虚化转场：00 结尾的天线 → 电键（两者都是「发送信号的开关」）
+    const shA1 = ctx.shot({ t0: 0, name: 'A1 电键', in: { type: 'blur', dur: 1.4, params: [5] }, scene: sA, camera: cA1,
       post: { exposure: 1.05, ao: { radius: .02, intensity: 1 }, dof: { focus: .27, aperture: .006, maxBlur: 12 }, grade: ctx.grade.warm, vignette: .34 },
       update(t) { applyCam(cA1, pA1(t), t, .0012); updDesk(t); this.post.dof.focus = cA1.position.distanceTo(key.knob); } });
 
