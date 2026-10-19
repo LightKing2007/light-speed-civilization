@@ -11,7 +11,7 @@
 <style>
 /* 画面固定 16:9（1920×1080 舞台坐标），窗口比例不同时加黑边。HUD 一律白色细线 + 等宽小字，橙色只做强调。 */
 :root{
-  --ink:#f2f2ee; --dim:rgba(235,235,230,.62); --faint:rgba(235,235,230,.2); --accent:#ff7a30; --warn:#ff4d3d;
+  --ink:#f4f4f0; --dim:rgba(238,238,232,.8); --faint:rgba(235,235,230,.32); --accent:#ff7a30; --warn:#ff4d3d;
   --f-serif:"Noto Serif SC","Songti SC","STSong",serif;
   --f-sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -25,25 +25,26 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #hudsvg,#hud2d,#hudlabels{position:absolute;left:0;top:0;width:1920px;height:1080px}
 #hudsvg{overflow:visible}
 /* 标注线 */
-.co-g .co-line{stroke:rgba(242,242,238,.88);stroke-width:1.3}
-.co-g .co-anchor{fill:none;stroke:rgba(242,242,238,.95);stroke-width:1.3}
+.co-g .co-line{stroke:rgba(244,244,240,.95);stroke-width:2.2}
+.co-g .co-anchor{fill:none;stroke:rgba(244,244,240,1);stroke-width:2.2}
 .co-g .co-dot{fill:var(--ink)}
 .co-g.accent .co-line,.co-g.accent .co-anchor{stroke:var(--accent)} .co-g.accent .co-dot{fill:var(--accent)}
 .co-g.warn .co-line,.co-g.warn .co-anchor{stroke:var(--warn)} .co-g.warn .co-dot{fill:var(--warn)}
-.co{position:absolute;left:0;top:0;white-space:nowrap;opacity:0;visibility:hidden;text-shadow:0 1px 8px rgba(0,0,0,.75)}
-.co b{display:block;font:500 25px/1.25 var(--f-sans);letter-spacing:.02em;color:var(--ink)}
-.co small{display:block;margin-top:3px;font:400 15px/1.35 var(--f-mono);letter-spacing:.05em;color:var(--dim)}
-.co i{display:block;font:600 12px/1 var(--f-mono);font-style:normal;letter-spacing:.18em;color:var(--accent);margin-bottom:6px}
+/* 标注文字：深色底板 + 大字，亮画面、暗画面上都看得清 */
+.co{position:absolute;left:0;top:0;white-space:nowrap;opacity:0;visibility:hidden;padding:9px 14px 10px;background:rgba(8,10,14,.72);border-radius:4px;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.co b{display:block;font:500 32px/1.25 var(--f-sans);letter-spacing:.02em;color:#fff}
+.co small{display:block;margin-top:5px;font:400 21px/1.4 var(--f-sans);letter-spacing:.02em;color:var(--dim)}
+.co i{display:block;font:600 15px/1 var(--f-mono);font-style:normal;letter-spacing:.16em;color:var(--accent);margin-bottom:7px}
 .co.l{text-align:right}
 .co.warn b{color:#ff8a7a}
-.br-g .br-line{stroke:rgba(242,242,238,.9);stroke-width:1.4}
+.br-g .br-line{stroke:rgba(244,244,240,.95);stroke-width:2}
 .br-g.accent .br-line{stroke:var(--accent)}
-.br-text{fill:var(--dim);font:500 13px var(--f-mono);letter-spacing:.14em}
-.ms-g .ms-line{stroke:rgba(242,242,238,.85);stroke-width:1.2}
-.ms{position:absolute;left:0;top:0;font:500 16px var(--f-mono);letter-spacing:.06em;color:var(--ink);white-space:nowrap;text-shadow:0 1px 6px #000;opacity:0}
-.ro{position:absolute;left:0;top:0;white-space:nowrap;opacity:0;visibility:hidden;font:500 16px/1.45 var(--f-mono);letter-spacing:.06em;color:var(--ink);text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.br-text{fill:var(--ink);font:500 18px var(--f-mono);letter-spacing:.1em}
+.ms-g .ms-line{stroke:rgba(244,244,240,.95);stroke-width:2}
+.ms{position:absolute;left:0;top:0;padding:3px 8px;background:rgba(8,10,14,.66);border-radius:3px;font:500 22px var(--f-mono);letter-spacing:.04em;color:#fff;white-space:nowrap;text-shadow:0 1px 6px #000;opacity:0}
+.ro{position:absolute;left:0;top:0;white-space:nowrap;opacity:0;visibility:hidden;padding:8px 14px;background:rgba(8,10,14,.66);border-radius:4px;font:500 22px/1.45 var(--f-sans);letter-spacing:.03em;color:var(--ink);text-shadow:0 1px 6px rgba(0,0,0,.7)}
 .ro .k{color:var(--dim)} .ro .a{color:var(--accent)} .ro .w{color:var(--warn)}
-.ro.big{font:600 44px/1 var(--f-cond);letter-spacing:.02em}
+.ro.big{font:600 48px/1 var(--f-cond);letter-spacing:.02em}
 .ro.timer{font:600 64px/1 var(--f-cond);font-variant-numeric:tabular-nums}
 /* 字幕：底部居中，底部有一道很淡的渐暗保证可读 */
 #capbg{position:absolute;left:0;right:0;bottom:0;height:260px;background:linear-gradient(to top,rgba(0,0,0,.42),rgba(0,0,0,0));pointer-events:none}
@@ -55,13 +56,10 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #card .num{font:600 26px var(--f-mono);letter-spacing:.2em;color:var(--accent)}
 #card h2{margin:10px 0 0;font:900 92px/1.05 var(--f-serif);letter-spacing:.06em;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.5)}
 #card .meta{margin-top:20px;font:500 19px var(--f-mono);letter-spacing:.22em;color:var(--ink);opacity:.82}
-#card .rule{margin-top:22px;height:1px;width:520px;background:var(--faint);position:relative}
-#card .rule i{position:absolute;left:0;top:0;height:1px;width:calc(var(--p)*100%);background:var(--ink)}
-#card .rule::after{content:"";position:absolute;left:0;right:0;top:-4px;height:9px;background:repeating-linear-gradient(90deg,var(--faint) 0 1px,transparent 1px 52px)}
 /* 角标 */
-#stamp{position:absolute;left:64px;top:52px;display:flex;align-items:baseline;gap:14px;opacity:0;font:500 16px var(--f-mono);letter-spacing:.18em;color:var(--dim);text-shadow:0 1px 6px rgba(0,0,0,.7)}
+#stamp{position:absolute;left:64px;top:52px;display:flex;align-items:baseline;gap:14px;opacity:0;font:500 18px var(--f-mono);letter-spacing:.18em;color:var(--dim);text-shadow:0 1px 6px rgba(0,0,0,.7)}
 #stamp b{color:var(--accent);font-weight:600}
-#stamp span{font:500 18px var(--f-sans);letter-spacing:.12em;color:var(--ink)}
+#stamp span{font:500 21px var(--f-sans);letter-spacing:.12em;color:var(--ink)}
 #stamp em{font:600 26px var(--f-cond);font-style:normal;letter-spacing:.06em;color:var(--ink);padding-left:14px;border-left:1px solid var(--faint)}
 #stamp.flip em{animation:flip .5s ease-out} body.render #stamp.flip em{animation:none}
 @keyframes flip{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:none}}
@@ -70,14 +68,14 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #stat.left{right:auto;left:110px;text-align:left}
 #stat .n{font:600 150px/.88 var(--f-cond);letter-spacing:.005em;color:#fff;font-variant-numeric:tabular-nums}
 #stat .u{font:500 30px var(--f-sans);color:var(--ink);margin-left:12px}
-#stat .l{margin-top:18px;padding-top:14px;border-top:1px solid var(--faint);font:400 20px/1.5 var(--f-sans);color:var(--ink);opacity:.9}
-#stat .s{margin-top:8px;font:400 13px/1.5 var(--f-mono);letter-spacing:.08em;color:var(--dim)}
+#stat .l{margin-top:18px;padding-top:14px;border-top:1px solid var(--faint);font:400 26px/1.5 var(--f-sans);color:#fff}
+#stat .s{margin-top:8px;font:400 17px/1.5 var(--f-sans);letter-spacing:.02em;color:var(--dim)}
 /* 署名条（人物/照片） */
 #lower{position:absolute;left:132px;bottom:230px;opacity:0;--p:0;padding-left:22px;text-shadow:0 1px 10px rgba(0,0,0,.8)}
 #lower::before{content:"";position:absolute;left:0;top:6px;width:3px;height:calc(var(--p)*100% - 6px);background:var(--accent)}
 #lower b{display:block;font:500 40px/1.2 var(--f-sans);letter-spacing:.04em;color:#fff}
-#lower span{display:block;margin-top:8px;font:400 19px var(--f-mono);letter-spacing:.12em;color:var(--ink);opacity:.85}
-#lower small{display:block;margin-top:10px;font:400 13px var(--f-mono);letter-spacing:.08em;color:var(--dim)}
+#lower span{display:block;margin-top:8px;font:400 24px var(--f-sans);letter-spacing:.04em;color:var(--ink)}
+#lower small{display:block;margin-top:10px;font:400 16px var(--f-sans);letter-spacing:.02em;color:var(--dim)}
 /* 片名 / 片尾 */
 #title{position:absolute;left:0;right:0;top:380px;text-align:center;opacity:0}
 #title h1{margin:0;font:900 168px/1 var(--f-serif);letter-spacing:.32em;padding-left:.32em;color:#fff;text-shadow:0 6px 60px rgba(0,0,0,.55)}
@@ -89,7 +87,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #endcard{position:absolute;left:132px;right:132px;bottom:170px;opacity:0;display:grid;gap:22px}
 #endcard h2{margin:0;font:900 130px/1 var(--f-serif);letter-spacing:.18em;color:#fff}
 #endcard .sub{font:400 30px/1.6 var(--f-sans);letter-spacing:.06em;color:var(--ink)}
-#endcard .src{max-width:1400px;font:400 14px/1.9 var(--f-mono);letter-spacing:.05em;color:var(--dim)}
+#endcard .src{max-width:1500px;font:400 19px/1.8 var(--f-sans);letter-spacing:.02em;color:var(--dim)}
 #chstate{position:absolute;right:64px;top:52px;padding:6px 12px;font:600 15px var(--f-mono);letter-spacing:.14em;color:#111;background:#ffd23f;opacity:0}
 #chstate.placeholder,#chstate.failed{opacity:.92} #chstate.failed{background:var(--warn);color:#fff}
 #dbg{display:none;position:absolute;right:16px;top:12px;font:500 14px var(--f-mono);color:#0f0;background:#000a;padding:4px 8px}
