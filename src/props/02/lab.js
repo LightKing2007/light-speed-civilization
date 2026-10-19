@@ -13,7 +13,7 @@ export const TRAINS = [38.3, 40.95];
 export const FV = 1.25, TAU = 1.15, CV = 1.9;
 export const qTrain = (t) => { let q = 0; for (const T of TRAINS) { const u = t - T; if (u >= 0) q += Math.exp(-u / TAU) * Math.cos(Math.PI * 2 * FV * u) * ss(0, .06, u); } return q; };
 /* 接收环沿轴移动（E2）：3.0 → 5.75（波腹）→ 8.0（波节，停）→ 10.25（波腹） */
-export const ringZ = t => 3 + 2.75 * easeIO(clamp((t - 44.3) / 1.4)) + 2.25 * easeIO(clamp((t - 46.0) / 1.0)) + 2.25 * easeIO(clamp((t - 47.6) / 1.1));
+export const ringZ = t => 3 + 2.75 * easeIO(clamp((t - 44.8) / 1.4)) + 2.25 * easeIO(clamp((t - 46.4) / 1.0)) + 2.25 * easeIO(clamp((t - 48.0) / 1.1));
 export const standK = z => Math.sin(Math.PI * 2 / LAM * (ZP - z));
 
 export async function buildLab(KIT) {

@@ -25,8 +25,8 @@ class Callout {
   constructor(o, layers) {
     Object.assign(this, { side: 'auto', dx: 110, dy: -70, style: '', code: '', sub: '', title: '', fade: .35 }, o);
     this.g = svgEl('g', { class: 'co-g ' + this.style, opacity: 0 }, layers.svg);
-    this.box = svgEl('rect', { width: 9, height: 9, class: 'co-anchor' }, this.g);
-    this.dot = svgEl('circle', { r: 1.8, class: 'co-dot' }, this.g);
+    this.box = svgEl('rect', { width: 13, height: 13, class: 'co-anchor' }, this.g);
+    this.dot = svgEl('circle', { r: 3.2, class: 'co-dot' }, this.g);
     this.line = svgEl('polyline', { class: 'co-line', fill: 'none' }, this.g);
     this.el = document.createElement('div'); this.el.className = 'co ' + this.style; layers.labels.appendChild(this.el);
     this.setText(this.title, this.sub, this.code);
@@ -34,6 +34,7 @@ class Callout {
   setText(title, sub = this.sub, code = this.code) {
     const k = title + '|' + sub + '|' + code; if (k === this._k) return; this._k = k;
     this.el.innerHTML = (code ? `<i>${code}</i>` : '') + `<b>${title}</b>` + (sub ? `<small>${sub}</small>` : '');
+    this._w = null;   // 文字变了，重新量尺寸
   }
   update(t, vis, cam) {
     let a = (this.t1 == null ? ss(this.t0, this.t0 + this.fade, t) : win(t, this.t0, this.t1, this.fade)) * vis;
@@ -45,7 +46,10 @@ class Callout {
     this._on = true;
     let side = this.side; if (side === 'auto') side = P.x > W * .6 ? 'left' : 'right';
     const sx = side === 'left' ? -1 : 1, dx = Math.abs(this.dx) * sx, dy = this.dy;
-    const ex = clamp(P.x + dx, 90, W - 90), ey = clamp(P.y + dy, 70, H - 160);
+    if (this._w == null) { this._w = this.el.offsetWidth || 0; this._h = this.el.offsetHeight || 0; }
+    // 文字框整个留在画面里、并避开底部字幕区：先按框的实际大小限制折线终点
+    const bw = this._w + 12, bh2 = this._h / 2 + 6;
+    const ex = sx > 0 ? clamp(P.x + dx, 40, W - 30 - bw) : clamp(P.x + dx, 30 + bw, W - 40), ey = clamp(P.y + dy, 30 + bh2, H - 175 - bh2);
     const kx = P.x + (ex - P.x) * (Math.abs(ey - P.y) < 1 ? 0 : .42);   // 先斜后平的折线引线
     const pts = [[P.x, P.y], [kx, ey], [ex, ey]];
     const Lt = Math.hypot(kx - P.x, ey - P.y) + Math.abs(ex - kx) || 1;
@@ -53,7 +57,7 @@ class Callout {
     let rem = p * Lt; const draw = [pts[0]];
     for (let i = 1; i < pts.length; i++) { const seg = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); if (rem >= seg) { draw.push(pts[i]); rem -= seg; } else { const f = seg ? rem / seg : 0; draw.push([lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)]); break; } }
     this.line.setAttribute('points', draw.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' '));
-    this.box.setAttribute('x', (P.x - 4.5).toFixed(1)); this.box.setAttribute('y', (P.y - 4.5).toFixed(1)); this.dot.setAttribute('cx', P.x.toFixed(1)); this.dot.setAttribute('cy', P.y.toFixed(1));
+    this.box.setAttribute('x', (P.x - 6.5).toFixed(1)); this.box.setAttribute('y', (P.y - 6.5).toFixed(1)); this.dot.setAttribute('cx', P.x.toFixed(1)); this.dot.setAttribute('cy', P.y.toFixed(1));
     this.g.setAttribute('opacity', a.toFixed(3));
     const ta = a * ss(this.t0 + .25, this.t0 + .6, t);
     const s = this.el.style; s.visibility = 'visible'; s.opacity = ta.toFixed(3);
@@ -161,7 +165,7 @@ export class HUD {
     if (this._card !== ch) {
       this._card = ch;
       k.innerHTML = (c.act ? `<div class="act"><span>${c.act}</span><em>${c.actName || ''}</em></div>` : '') +
-        `<div class="num">${ch.id}</div><h2>${c.title}</h2><div class="meta">${c.meta || ''}</div><div class="rule"><i></i></div>`;
+        `<div class="num">${ch.id}</div><h2>${c.title}</h2><div class="meta">${c.meta || ''}</div>`;
       this._stampKey = null;
     }
     const t0 = c.t0 ?? .2, dur = c.dur ?? 3.4;
@@ -191,7 +195,7 @@ export class HUD {
 
 /* ---------- Canvas2D 机能风绘图小工具（draw2d 回调里使用） ---------- */
 export const ink = {
-  white: 'rgba(242,242,238,.92)', dim: 'rgba(235,235,230,.55)', faint: 'rgba(235,235,230,.18)', accent: '#ff7a30', warn: '#ff4d3d', cyan: '#8fd8ff',
+  white: 'rgba(246,246,242,.97)', dim: 'rgba(238,238,232,.78)', faint: 'rgba(235,235,230,.3)', accent: '#ff7a30', warn: '#ff4d3d', cyan: '#8fd8ff',
   mono: (px, w = 500) => `${w} ${px}px "JetBrains Mono", ui-monospace, Menlo, monospace`,
   sans: (px, w = 400) => `${w} ${px}px "Noto Sans SC", "PingFang SC", sans-serif`,
   cond: (px, w = 600) => `${w} ${px}px "Barlow Condensed", "Oswald", "Arial Narrow", sans-serif`,

@@ -160,6 +160,7 @@ void main(){if(vU>uHead||vU<uTail)discard;
  if(uDash>0.){if(fract(vU*uDash)>.55)discard;}
  k+=uGlowHead*smoothstep(.025,0.,uHead-vU)*step(uHead,.999);
  gl_FragColor=vec4(uColor*k,uOp*edge);}`;
+const PL_ALIAS = { opacity: 'uOp', intensity: 'uK' };
 export function pathLine(points, o = {}) {
   const n = points.length, pos = [], prev = [], next = [], side = [], u = [], idx = [];
   let L = 0; const acc = [0]; for (let i = 1; i < n; i++) { L += points[i].distanceTo(points[i - 1]); acc.push(L); }
@@ -178,8 +179,8 @@ export function pathLine(points, o = {}) {
   });
   const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = o.renderOrder ?? 2; mesh.userData.length = L;
   mesh.onBeforeRender = (r) => { const s = r.getDrawingBufferSize(_v2); const t = r.getRenderTarget(); if (t) m.uniforms.uRes.value.set(t.width, t.height); else m.uniforms.uRes.value.copy(s); };
-  /** 便捷设置 */
-  mesh.set = (k) => { for (const key in k) { const U = 'u' + key[0].toUpperCase() + key.slice(1); if (m.uniforms[U]) { if (m.uniforms[U].value.isColor) m.uniforms[U].value.set(k[key]); else m.uniforms[U].value = k[key]; } } return mesh; };
+  /** 便捷设置：set({ head, opacity, intensity, pulse, … })；opacity / intensity 对应 uOp / uK（与构造参数同名） */
+  mesh.set = (k) => { for (const key in k) { const U = PL_ALIAS[key] || 'u' + key[0].toUpperCase() + key.slice(1); if (m.uniforms[U]) { if (m.uniforms[U].value.isColor) m.uniforms[U].value.set(k[key]); else m.uniforms[U].value = k[key]; } } return mesh; };
   return mesh;
 }
 const _v2 = new THREE.Vector2();

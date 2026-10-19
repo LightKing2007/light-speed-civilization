@@ -6,6 +6,8 @@
    C1 通用机器：拉远，纸带左段是编码后的「机器 A 的规则」、右段是数据，同一个读写头在两段之间往返
    C2 今天的计算机：纸带 → 内存、读写头 + 状态 → 处理器、写在纸带上的规则 → 程序
    D  只剩纸：机器隐去，灯光渐暗（04 → 05 经黑）。
+   标注原则（可读性精修）：每个镜头同一时刻最多 2 个引线标注 + 1 个信息面板；每条标注完整停留 ≥ 3.5 秒、相邻标注错开 ≥ 0.8 秒；
+   面板底色不透明度 .86，主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」。
    道具在 src/props/04/machine.js（单位：米）。所有动画都是 t 的纯函数。 */
 import * as THREE from 'three';
 import { V, ss, lerp, clamp, easeIO, easeOut, camPath, applyCam } from '../engine/util.js';
@@ -17,8 +19,8 @@ import { buildMachine, makeGlyphs, paperMaterial, X, P, TW, YT, DIAL_ANG, CELL0,
 const RULES = { A: { '0': ['0', 1, 'A'], '1': ['1', 1, 'A'], '_': ['_', -1, 'B'] }, B: { '1': ['0', -1, 'B'], '0': ['1', 0, 'H'], '_': ['1', 0, 'H'] } };
 const ROWS = [['A', '0'], ['A', '1'], ['A', '_'], ['B', '1'], ['B', '0'], ['B', '_']];
 const DATA = { 0: '1', 1: '0', 2: '1', 3: '1' };                       // 格 0..3：1011
-// 每一步 [开始, 时长]：B1 里 A 状态快速右行（5 步），B2 里慢速进位（3 步）
-const STEPS = [[9.0, .72], [9.72, .72], [10.44, .72], [11.16, .72], [11.88, 1.02], [13.3, 1.55], [14.85, 1.55], [16.4, 1.6]];
+// 每一步 [开始, 时长]：B1 里 A 状态快速右行（5 步），B2 里慢速进位（3 步）。最后一步在 16.5 s 写下「1」，结果在面板上停留到 B2 结束
+const STEPS = [[9.0, .72], [9.72, .72], [10.44, .72], [11.16, .72], [11.88, 1.02], [13.2, 1.4], [14.6, 1.4], [16.0, 1.5]];
 const SIM = []; let FINAL;
 {
   let head = 0, st = 'A'; const tape = { ...DATA };
@@ -31,6 +33,12 @@ const SIM = []; let FINAL;
   FINAL = { head, st, tape: { ...tape } };
 }
 const HALT_T = STEPS[STEPS.length - 1][0] + STEPS[STEPS.length - 1][1];
+const DONE_T = STEPS[STEPS.length - 1][0] + .34 * STEPS[STEPS.length - 1][1];   // 最后一格写完（纸带上已是 1100）
+/* 屏幕文字的统一样式 */
+const TXT = 'rgba(246,246,242,.97)', TXT2 = 'rgba(238,238,232,.9)';
+const panelBox = (g, x, y, w, h) => { g.fillStyle = 'rgba(8,10,14,.86)'; g.fillRect(x, y, w, h); ink.rect(g, x, y, w, h, 'rgba(235,235,230,.2)', 1); };
+/** 署名条（左下）后面的柔和暗底：画在 2D 层（在署名条文字之下） */
+const scrim = (g, a = .55) => { g.save(); g.translate(520, 792); g.scale(1, .27); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 600); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(.62, `rgba(0,0,0,${a * .75})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(-620, -620, 1240, 1240); g.restore(); };
 /** B 段机器状态：读写头位置（格，可为小数）、笔压、表盘角度、各格符号、当前规则行 */
 function runB(t) {
   let k = -1; for (let i = 0; i < SIM.length; i++) if (t >= SIM[i].s) k = i;
@@ -119,7 +127,7 @@ export default {
     const camXA = t => XE + V0 * Math.pow(Math.max(0, TA - t), 2) / (2 * TA);
     const SWEEP = (i, t) => ss(.55 + (X(i) - .2) * 1.6, .95 + (X(i) - .2) * 1.6, t);
     const A1 = ctx.shot({ name: '04.A1 纸带', t0: 0, in: { type: 'dissolve', dur: 1.0 }, scene: sc, camera: camA,
-      post: { exposure: 1.02, ao: true, dof: { focus: .54, aperture: .01, maxBlur: 12 }, grade: ctx.grade.warm, vignette: .3, grain: .03 },
+      post: { exposure: 1.08, ao: true, dof: { focus: .54, aperture: .004, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3, grain: .03 },
       update(t) {
         const sym = {}; [0, 1, 2, 3].forEach(i => { if (t >= 1.5 + i * .25) sym[i] = DATA[i]; });
         const k = [0, 1, 2, 3].map(i => clamp((t - 1.5 - i * .25) / .14)); const cur = k.findIndex(x => x > 0 && x < 1);
@@ -133,103 +141,114 @@ export default {
 
     /* ================= A2 · 桌上的相片：图灵 16 岁 ================= */
     const camA2 = KIT.cam(30, .02, 20);
-    const pA2 = camPath([[3.0, [-.35, .36, .66], [-.38, .0, .4], 30], [6.7, [-.34, .32, .63], [-.38, .0, .405], 29]]);
+    const pA2 = camPath([[3.0, [-.35, .36, .66], [-.38, .0, .4], 30], [7.5, [-.34, .315, .625], [-.38, .0, .405], 29]]);
     const A2 = ctx.shot({ name: '04.A2 相片', t0: 3.0, in: { type: 'dissolve', dur: .8 }, scene: sc, camera: camA2,
-      post: { exposure: 1.08, ao: true, dof: { focus: .4, aperture: .012, maxBlur: 10 }, grade: ctx.grade.warm, vignette: .34, grain: .035 },
+      post: { exposure: 1.16, ao: true, dof: { focus: .4, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .3, grain: .035 },
       update(t) { curTape = DATA; setTape(DATA); setMachine({ head: PARK, show: false }); applyCam(camA2, pA2(t), t, .0006); A2.post.dof.focus = camA2.position.distanceTo(print.position); } });
-    ctx.lower({ t0: 3.6, t1: 6.5, name: '艾伦·图灵', meta: '约 1928 年 · 16 岁', credit: '照片：可能为 Arthur Reginald Chaffin 摄 · 公有领域' });
+    // 署名条：完整停留 3.5 s（3.7–7.2），B1 溶入时淡出
+    ctx.draw2d({ t0: 3.3, t1: 7.6, fade: .4, draw(g) { scrim(g); } });
+    ctx.lower({ t0: 3.3, t1: 7.6, name: '艾伦·图灵', meta: '约 1928 年 · 16 岁', credit: '照片：可能为 Arthur Reginald Chaffin 摄 · 公有领域' });
 
     /* ================= B1 · 机器现身 + 规则表；A 状态右行找末位 ================= */
     const camB1 = KIT.cam(30, .02, 20);
-    const pB1 = camPath([[6.4, [.5, .16, .2], [.47, .075, 0], 30], [8.8, [.1, .46, .9], [.38, .1, 0], 30], [13.2, [.04, .44, .86], [.4, .1, 0], 29]]);
-    const B1 = ctx.shot({ name: '04.B1 机器', t0: 6.4, in: { type: 'dissolve', dur: .7 }, scene: sc, camera: camB1,
-      post: { exposure: 1.05, ao: true, dof: { focus: .9, aperture: .006, maxBlur: 10 }, grade: ctx.grade.warm, vignette: .3 },
+    const pB1 = camPath([[6.7, [.5, .16, .2], [.47, .075, 0], 30], [9.0, [.1, .46, .9], [.38, .1, 0], 30], [13.2, [.04, .44, .86], [.4, .1, 0], 29]]);
+    const B1 = ctx.shot({ name: '04.B1 机器', t0: 6.7, in: { type: 'dissolve', dur: .8 }, scene: sc, camera: camB1,
+      post: { exposure: 1.15, ao: true, dof: { focus: .9, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .28 },
       update(t) { const r = machineB(t); applyCam(camB1, pB1(t), t, .0005); B1.post.dof.focus = camB1.position.distanceTo(V(X(r.head), .12, 0)); } });
-    ctx.callout({ shot: B1, at: V(X(-5), YT, .006), title: '纸带', sub: '无限长 · 一格写一个符号', t0: 7.1, t1: 9.3, side: 'left', dx: -90, dy: 110 });
-    ctx.callout({ shot: B1, at: t => V(X(runB(t).head), YT + .07, .062), title: '读写头', sub: '一次只看一格', t0: 7.9, t1: 10.2, side: 'left', dx: -150, dy: -170 });
-    ctx.callout({ shot: B1, at: t => V(X(runB(t).head), YT + .19, -.04), title: '状态', sub: 'A 右行 · B 进位 · H 停机', t0: 10.3, t1: 12.9, side: 'left', dx: -130, dy: -90 });
+    // 两个部件各一个标注（规则表见右侧面板）；状态并入读写头的标注：表盘就装在读写头上
+    ctx.callout({ shot: B1, at: V(X(-6), YT, .006), title: '纸带', sub: '一格写一个符号', t0: 7.4, t1: 11.9, side: 'left', dx: -110, dy: 120 });
+    ctx.callout({ shot: B1, at: t => V(X(runB(t).head), YT + .07, .062), title: '读写头', sub: '表盘显示当前状态', t0: 8.2, t1: 12.7, side: 'left', dx: -150, dy: -170 });
 
     /* ================= B2 · 二进制加一：进位 ================= */
     const camB2 = KIT.cam(28, .02, 20);
     const B2 = ctx.shot({ name: '04.B2 进位', t0: 13.0, in: { type: 'cut' }, scene: sc, camera: camB2,
-      post: { exposure: 1.06, ao: true, dof: { focus: .5, aperture: .008, maxBlur: 12 }, grade: ctx.grade.warm, vignette: .32 },
+      post: { exposure: 1.16, ao: true, dof: { focus: .5, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .28 },
       update(t) {
-        const r = machineB(t), hx = X(lerp(3, 1, ss(13.2, 18.2, t)));
-        applyCam(camB2, { p: V(hx + .17, YT + .13, .38), l: V(hx + .035, YT + .028, 0), fov: 28 }, t, .0005);
-        B2.post.dof.focus = camB2.position.distanceTo(V(X(r.head), YT + .03, .03));
+        // 机位略高、看得到纸带上的 4 个数字格（读写头左移时一路跟随）
+        const r = machineB(t), hx = X(lerp(3, 1.4, ss(13.2, 17.2, t)));
+        applyCam(camB2, { p: V(hx + .14, YT + .21, .34), l: V(hx + .03, YT + .015, 0), fov: 28 }, t, .0005);
+        B2.post.dof.focus = camB2.position.distanceTo(V(X(r.head), YT + .02, .02));
       } });
-    ctx.bracket({ shot: B2, box: tapeBox(0, 3), label: '1011 + 1 = 1100', t0: 18.2, t1: 19.9, style: 'accent' });
+    // 结果：框出纸带上的 4 个数字（无文字，结果写在规则表面板里）
+    ctx.bracket({ shot: B2, box: tapeBox(0, 3), label: '', t0: DONE_T, t1: 20.6, style: 'accent' });
 
     // 右侧规则表（B1 / B2 共用）：高亮正在执行的规则
     const SYM = s => s === '_' ? '空' : s, MOV = m => m > 0 ? '→' : m < 0 ? '←' : '·';
+    // 面板（右侧，避开字幕区）：标题 28 px、表头 21 px、表内符号 32 px、底部「当前状态」与算式
     const ruleTable = (g, t) => {
-      const r = runB(t), x = 1388, y = 214, w = 448, rh = 52, cols = [8, 98, 188, 278, 368];
-      const h = 112 + ROWS.length * rh + 120;
-      g.fillStyle = 'rgba(9,9,10,.76)'; g.fillRect(x - 24, y - 40, w + 48, h); ink.corners(g, x - 24, y - 40, w + 48, h, 14, ink.dim);
-      ink.text(g, '规则表 · RULE TABLE', x, y - 8, { font: ink.mono(14), color: ink.dim });
-      ['状态', '读到', '写入', '移动', '新状态'].forEach((s, i) => ink.text(g, s, x + cols[i], y + 32, { font: ink.sans(17), color: ink.dim }));
-      ink.line(g, [[x, y + 46], [x + w, y + 46]], ink.faint, 1);
+      const r = runB(t), X0 = 1340, Y0 = 136, W = 530, H = 640, x = X0 + 30, rh = 56, cols = [10, 104, 198, 292, 386];
+      panelBox(g, X0, Y0, W, H);
+      ink.text(g, '规则表：读到什么，就做什么', x, Y0 + 50, { font: ink.sans(28, 500), color: TXT });
+      ['状态', '读到', '写入', '移动', '新状态'].forEach((s, i) => ink.text(g, s, x + cols[i], Y0 + 98, { font: ink.sans(21), color: TXT2 }));
+      ink.line(g, [[x, Y0 + 114], [X0 + W - 30, Y0 + 114]], 'rgba(235,235,230,.35)', 1);
       const active = t >= STEPS[0][0] && t < HALT_T + .2 ? r.row : t >= HALT_T + .2 ? 4 : -1;
       ROWS.forEach(([s, rd], i) => {
         const a = ss(9.6 + i * .1, 9.9 + i * .1, t); if (a <= 0) return;
-        const yy = y + 60 + i * rh, on = i === active, [w2, mv, ns] = RULES[s][rd];
+        const yy = Y0 + 124 + i * rh, on = i === active, [w2, mv, ns] = RULES[s][rd];
         g.save(); g.globalAlpha *= a;
-        if (on) { g.fillStyle = 'rgba(255,122,48,.17)'; g.fillRect(x - 10, yy, w + 20, rh - 6); g.fillStyle = ink.accent; g.fillRect(x - 10, yy, 3, rh - 6); }
-        const col = on ? ink.accent : ink.white;
-        [s, SYM(rd), SYM(w2), MOV(mv), ns].forEach((v, j) => ink.text(g, v, x + cols[j] + (j === 3 ? 6 : 0), yy + 34, { font: v === '空' ? ink.sans(22, 500) : ink.mono(26, 600), color: j === 4 && v === 'H' && !on ? ink.warn : col }));
+        if (on) { g.fillStyle = 'rgba(255,122,48,.22)'; g.fillRect(x - 12, yy, W - 36, rh - 6); g.fillStyle = ink.accent; g.fillRect(x - 12, yy, 4, rh - 6); }
+        const col = on ? ink.accent : TXT;
+        [s, SYM(rd), SYM(w2), MOV(mv), ns].forEach((v, j) => ink.text(g, v, x + cols[j] + (j === 3 ? 6 : 0), yy + 38, { font: v === '空' ? ink.sans(26, 500) : ink.mono(32, 600), color: j === 4 && v === 'H' && !on ? ink.warn : col }));
         g.restore();
       });
-      const fy = y + 60 + ROWS.length * rh + 24; ink.line(g, [[x, fy - 14], [x + w, fy - 14]], ink.faint, 1);
+      const fy = Y0 + 124 + ROWS.length * rh + 14; ink.line(g, [[x, fy], [X0 + W - 30, fy]], 'rgba(235,235,230,.35)', 1);
       const halted = t >= HALT_T - .3;
-      ink.text(g, '当前状态', x, fy + 18, { font: ink.sans(17), color: ink.dim });
-      ink.text(g, halted ? 'H · 停机' : r.st === 'A' ? 'A · 右行' : 'B · 进位', x + 98, fy + 20, { font: ink.mono(24, 600), color: halted ? ink.warn : ink.white });
-      if (t >= HALT_T) { const a = ss(HALT_T, HALT_T + .4, t); g.save(); g.globalAlpha *= a; ink.text(g, '1011（11）+ 1 = 1100（12）', x, fy + 64, { font: ink.mono(22, 600), color: ink.accent }); g.restore(); }
-      else ink.text(g, 'A 右行找末位 · B 进位 · H 停机', x, fy + 62, { font: ink.mono(15), color: ink.dim });
+      ink.text(g, '当前状态', x, fy + 44, { font: ink.sans(22), color: TXT2 });
+      ink.text(g, halted ? 'H · 停机' : r.st === 'A' ? 'A · 向右找末位' : 'B · 向左进位', x + 108, fy + 45, { font: ink.sans(28, 500), color: halted ? ink.warn : TXT });
+      // 算式：先是「？」，最后一格写完后换成结果
+      const done = t >= DONE_T, k = done ? ss(DONE_T, DONE_T + .3, t) : 1;
+      g.save(); g.globalAlpha *= k;
+      ink.text(g, done ? '1011 + 1 = 1100' : '1011 + 1 = ?', x, fy + 100, { font: ink.mono(34, 600), color: done ? ink.accent : TXT });
+      if (done) ink.text(g, '即 11 + 1 = 12', X0 + W - 30, fy + 98, { font: ink.sans(22), color: TXT2, align: 'right' });
+      g.restore();
     };
-    ctx.draw2d({ t0: 9.5, t1: 19.9, draw: ruleTable });
+    ctx.draw2d({ t0: 9.6, t1: 20.7, draw: ruleTable });
 
     /* ================= C1 · 通用机器：规则也写在纸带上 ================= */
     const camC1 = KIT.cam(30, .02, 30);
-    const pC1 = camPath([[19.6, [-.08, 1.5, 1.12], [-.11, .04, -.02], 28], [26.6, [-.12, 1.36, 1.02], [-.12, .05, -.02], 28]]);
+    // 机位比原来低、近：纸带上的规则符号和数据格看得清；读写头在规则与数据之间往返都在画面内
+    const pC1 = camPath([[19.6, [.04, 1.26, .98], [-.02, .04, -.02], 28], [26.6, [.13, 1.13, .88], [.08, .045, -.02], 28]]);
     const C1 = ctx.shot({ name: '04.C1 通用机器', t0: 20.0, in: { type: 'dissolve', dur: .8 }, scene: sc, camera: camC1,
-      post: { exposure: 1.06, ao: true, dof: { focus: 1.8, aperture: .004, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .32 },
-      update(t) { machineU(t); applyCam(camC1, pC1(t), t, .0006); C1.post.dof.focus = camC1.position.distanceTo(V(-.14, .05, 0)); } });
-    ctx.bracket({ shot: C1, box: tapeBox(G0, G0 + 34), label: 'RULES · 6 × 5', t0: 20.6, t1: 26.3 });
-    ctx.bracket({ shot: C1, box: tapeBox(0, 3), label: 'DATA', t0: 21.0, t1: 26.3, style: 'accent' });
-    ctx.callout({ shot: C1, at: V(X(G0 + 17), YT, -.02), title: '机器 A 的规则', sub: '编码成符号，写在纸带上', t0: 20.7, t1: 26.3, side: 'left', dx: -60, dy: -170 });
-    ctx.callout({ shot: C1, at: V(X(1.5), YT, -.02), title: '数据', sub: '1011 → 1100', t0: 21.2, t1: 26.3, side: 'right', dx: 90, dy: -170, style: 'accent' });
+      post: { exposure: 1.16, ao: true, dof: { focus: 1.5, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .28 },
+      update(t) { machineU(t); applyCam(camC1, pC1(t), t, .0006); C1.post.dof.focus = camC1.position.distanceTo(V(.04, .05, 0)); } });
+    ctx.callout({ shot: C1, at: V(X(-26), YT, -.004), title: '机器 A 的规则', sub: '编成符号，写在纸带上', t0: 20.7, t1: 26.4, side: 'left', dx: 40, dy: -190 });
+    ctx.callout({ shot: C1, at: V(X(1.5), YT, -.004), title: '要算的数据', sub: '1011 → 1100', t0: 21.5, t1: 26.4, side: 'left', dx: 60, dy: -190, style: 'accent' });
+    // 读写头读规则时，橙色角框闪一下（无文字）
     for (const [a, b, g] of UR) ctx.bracket({ shot: C1, box: tapeBox(groupCell(g) - 2, groupCell(g) + 2), label: '', t0: a - .05, t1: b + .3, style: 'accent', fade: .1 });
-    ctx.readout({ x: 1810, y: 96, align: 'right', t0: 20.5, t1: 26.3, html: t => { const r = runU(t); return r.group >= 0 ? `<span class="k">读取规则</span> ${ENC[r.group].join(' ')}` : r.done ? '<span class="k">数据</span> 1100 <span class="k">· 停机</span>' : '<span class="k">通用机器 · 往返于规则与数据之间</span>'; } });
+    ctx.draw2d({ shot: C1, t0: 22.3, t1: 26.4, draw(g) {
+      const s = '同一个读写头：先读规则，再改数据'; g.font = ink.sans(28, 500); const w = g.measureText(s).width + 60;
+      panelBox(g, 960 - w / 2, 92, w, 64); ink.text(g, s, 960, 135, { font: ink.sans(28, 500), color: TXT, align: 'center' });
+    } });
 
     /* ================= C2 · 今天的计算机 ================= */
     const camC2 = KIT.cam(30, .02, 20);
     const pC2 = camPath([[26.2, [1.0, .27, .56], [.6, .12, -.05], 30], [33.0, [.92, .25, .48], [.6, .12, -.05], 29]]);
     const C2 = ctx.shot({ name: '04.C2 今天', t0: 26.4, in: { type: 'dissolve', dur: .7 }, scene: sc, camera: camC2,
-      post: { exposure: 1.05, ao: true, dof: { focus: .6, aperture: .008, maxBlur: 10 }, grade: ctx.grade.warm, vignette: .32 },
+      post: { exposure: 1.15, ao: true, dof: { focus: .6, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .28 },
       update(t) { machineU(t); applyCam(camC2, pC2(t), t, .0005); C2.post.dof.focus = camC2.position.distanceTo(V(X(1), .13, 0)); } });
-    const MAP = [['纸带', '内存', '存放数据'], ['读写头 + 状态', '处理器', '一步一步执行'], ['写在纸带上的规则', '程序', '也存放在内存里']];
-    ctx.draw2d({ t0: 27.0, t1: 32.3, draw(g, t) {
-      const x = 1180, y = 300, w = 640;
-      g.fillStyle = 'rgba(9,9,10,.72)'; g.fillRect(x - 28, y - 64, w + 56, 330); ink.corners(g, x - 28, y - 64, w + 56, 330, 14, ink.dim);
-      ink.text(g, '通用图灵机 → 今天的计算机', x, y - 26, { font: ink.mono(15), color: ink.dim });
-      MAP.forEach(([a, b, c], i) => {
-        const t0 = 27.3 + i * .55, e = easeOut(ss(t0, t0 + .5, t)); if (e <= 0) return;
-        const yy = y + 30 + i * 84; g.save(); g.globalAlpha *= ss(t0, t0 + .25, t);
-        ink.text(g, a, x, yy, { font: ink.sans(26, 500) });
-        const ax = x + 270, bx = x + 270 + 90 * e; ink.line(g, [[ax, yy - 9], [bx, yy - 9]], ink.accent, 1.6);
-        if (e > .95) { ink.line(g, [[bx - 9, yy - 15], [bx, yy - 9], [bx - 9, yy - 3]], ink.accent, 1.6); }
+    // 右侧对照面板：三行在 0.4 s 内依次出现，最后一行完整停留约 3.7 s
+    const MAP = [['纸带', '内存'], ['读写头 + 状态', '处理器'], ['纸带上的规则', '程序']];
+    ctx.draw2d({ t0: 27.0, t1: 32.6, draw(g, t) {
+      const X0 = 1196, Y0 = 232, W = 664, H = 340, x = X0 + 34;
+      panelBox(g, X0, Y0, W, H);
+      ink.text(g, '通用机器 = 今天的计算机', x, Y0 + 54, { font: ink.sans(30, 500), color: TXT });
+      ink.line(g, [[x, Y0 + 78], [X0 + W - 34, Y0 + 78]], 'rgba(235,235,230,.35)', 1);
+      MAP.forEach(([a, b], i) => {
+        const t0 = 27.2 + i * .4, e = easeOut(ss(t0, t0 + .5, t)); if (e <= 0) return;
+        const yy = Y0 + 146 + i * 76; g.save(); g.globalAlpha *= ss(t0, t0 + .25, t);
+        ink.text(g, a, x, yy, { font: ink.sans(28, 500), color: TXT2 });
+        const ax = x + 262, bx = x + 262 + 96 * e; ink.line(g, [[ax, yy - 10], [bx, yy - 10]], ink.accent, 2.2);
+        if (e > .95) { ink.line(g, [[bx - 11, yy - 18], [bx, yy - 10], [bx - 11, yy - 2]], ink.accent, 2.2); }
         g.globalAlpha *= ss(t0 + .3, t0 + .6, t);
-        ink.text(g, b, x + 384, yy, { font: ink.sans(30, 700), color: ink.white });
-        ink.text(g, c, x + 384, yy + 28, { font: ink.sans(16), color: ink.dim });
+        ink.text(g, b, x + 390, yy + 2, { font: ink.sans(34, 700), color: TXT });
         g.restore();
       });
-      g.save(); g.globalAlpha *= ss(29.4, 29.9, t); ink.text(g, '丘奇—图灵论题：能一步步算出来的，图灵机都能算', x, y + 262, { font: ink.sans(17), color: ink.dim }); g.restore();
     } });
 
     /* ================= D · 只在纸上：机器隐去，灯光渐暗 ================= */
     const camD = KIT.cam(30, .02, 20); camD.up.set(0, 0, -1);
     const D = ctx.shot({ name: '04.D 纸上', t0: 32.4, in: { type: 'dissolve', dur: 1.0 }, scene: sc, camera: camD,
-      post: { exposure: 1, dof: { focus: .5, aperture: .008, maxBlur: 10 }, grade: ctx.grade.warm, vignette: .38, grain: .035 },
+      post: { exposure: 1.05, dof: { focus: .5, aperture: .003, maxBlur: 8 }, grade: ctx.grade.warm, vignette: .36, grain: .035 },
       update(t) {
         const tp = { ...RULE_TAPE, ...FINAL.tape }; curTape = tp; setTape(tp);
         const dim = 1 - .92 * ss(33.4, 35.9, t);
@@ -237,11 +256,11 @@ export default {
         const cx = X(-2.2) + .012 * (t - 32.4), h = .5 - .012 * (t - 32.4);
         camD.position.set(cx, h, .02); camD.lookAt(cx, 0, .02); D.post.dof.focus = h;
       } });
-    ctx.readout({ x: 960, y: 150, align: 'center', t0: 33.0, t1: 35.9, html: '<span class="k">A. M. TURING · 1936</span><br>ON COMPUTABLE NUMBERS, WITH AN APPLICATION TO THE ENTSCHEIDUNGSPROBLEM<br><span class="k">《论可计算数及其在判定问题上的应用》</span>' });
+    // 结尾不再叠论文标题：字幕「它只存在于纸上」配纸带本身就够了
 
     /* ================= 音效 ================= */
     ctx.cue(.6, 'riser', 1.4, .08); for (let i = 0; i < 4; i++) ctx.cue(1.5 + i * .25, 'tap', .7);
-    ctx.cue(3.0, 'swoosh', .25); ctx.cue(6.4, 'whoosh', 1.4, .2);
+    ctx.cue(3.0, 'swoosh', .25); ctx.cue(6.7, 'whoosh', 1.4, .2);
     for (const S of SIM) {
       ctx.cue(S.s + .1 * S.d, 'tick', .5); ctx.cue(S.s + .3 * S.d, 'clack', .45);
       if (S.mv) ctx.cue(S.s + .52 * S.d, 'relay', .3);
@@ -252,7 +271,7 @@ export default {
     for (let i = 0; i < UK.length - 1; i++) if (UK[i][1] !== UK[i + 1][1]) ctx.cue(UK[i][0] + .05, 'swoosh', .12);
     for (const [a] of UR) ctx.cue(a + .05, 'tick', .5);
     for (const [w] of UW) ctx.cue(w, 'clack', .5);
-    ctx.cue(26.4, 'sub', .25); for (let i = 0; i < 3; i++) ctx.cue(27.3 + i * .55, 'blip', 880 + i * 220, .07);
+    ctx.cue(26.4, 'sub', .25); for (let i = 0; i < 3; i++) ctx.cue(27.2 + i * .4, 'blip', 880 + i * 220, .07);
     ctx.cue(32.6, 'sub', .3);
   },
 };

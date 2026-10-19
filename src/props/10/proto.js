@@ -81,7 +81,7 @@ export function buildIslands(KIT) {
 export const PK = { y: .62, d: .5, h: .3 };
 /** 包的各段（x 范围），从右到左：数据、TCP 头、IP 头、链路层帧头；帧尾在最右 */
 export const SEG = { data: [-.3, .9], tcp: [-.78, -.3], ip: [-1.3, -.78], link: [-1.85, -1.3], fcs: [.9, 1.08] };
-export const LAB = { router: V(5.2, 0, 0), lane: { z: -7, x0: -4.2, x1: 4.2 }, layers: V(0, 0, 7), desk: V(0, 0, 15), map: V(0, 0, 23) };
+export const LAB = { router: V(5.2, 0, 0), lane: { z: -7, x0: -3.6, x1: 3.6 }, layers: V(0, 0, 7), desk: V(0, 0, 15), map: V(0, 0, 23) };
 
 export function buildLab(KIT, { cerf, kahn, mapImg }) {
   const scene = new THREE.Scene();
@@ -102,21 +102,21 @@ export function buildLab(KIT, { cerf, kahn, mapImg }) {
     const body = mesh(KIT.rbox(L - .02, PK.h, PK.d, .03, 3), new THREE.MeshPhysicalMaterial({ color, roughness: .35, metalness: .1, clearcoat: .5, emissive: color, emissiveIntensity: .12, transparent: true }));
     g.add(body);
     const lt = liveTex(KIT, Math.round(L * 600), 180), face = new THREE.Mesh(new THREE.PlaneGeometry(L - .06, PK.h - .04), new THREE.MeshBasicMaterial({ map: lt.tex, transparent: true, toneMapped: false }));
-    face.position.z = PK.d / 2 + .002; g.add(face);
+    face.position.z = PK.d / 2 + .002; face.renderOrder = 4; g.add(face);   // 画在半透明「信封」之后：字不被外壳染淡
     const top = face.clone(); top.rotation.x = -Math.PI / 2; top.position.set(0, PK.h / 2 + .002, 0); g.add(top);
     if (label) lt.set(label.join('|'), (gg, w, h) => drawLabel(gg, w, h, label));
     return { group: g, body, lt };
   };
-  const drawLabel = (g, w, h, [big, small, col = '#0b1220']) => { g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.min(76, w / Math.max(3, big.length) * 1.5)}px ${MONO}`; g.fillText(big, w / 2, small ? h * .38 : h / 2); if (small) { g.font = `600 ${Math.min(36, w / small.length * 1.7)}px ${MONO}`; g.fillText(small, w / 2, h * .76); } };
-  const data = block('data', new THREE.Color(COL.data), ['GET /', 'HTTP 请求 · 数据']);
-  const tcp = block('tcp', new THREE.Color(COL.tcp), ['TCP', '52814→80']);
-  const ip = block('ip', new THREE.Color(COL.ip), null);
+  // 可读性精修：每段只写一个大字（数据 / TCP / IP / 链路名），去掉看不清的小字第二行（端口、TTL 等改由章节里的标注说明）
+  const drawLabel = (g, w, h, [big, small, col = '#0b1220']) => { if (!big) return; g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; const cjk = /[\u4e00-\u9fff]/.test(big); g.font = `700 ${Math.min(small ? 76 : 96, w / Math.max(3, big.length) * (cjk ? 1.15 : 1.5))}px ${cjk ? SANS : MONO}`; g.fillText(big, w / 2, small ? h * .38 : h * .53); if (small) { g.font = `600 ${Math.min(36, w / small.length * 1.7)}px ${MONO}`; g.fillText(small, w / 2, h * .76); } };
+  const data = block('data', new THREE.Color(COL.data), ['数据']);
+  const tcp = block('tcp', new THREE.Color(COL.tcp), ['TCP']);
+  const ip = block('ip', new THREE.Color(COL.ip), ['IP']);
   const link = block('link', new THREE.Color(COL.link), null);
-  const fcs = block('fcs', new THREE.Color(COL.link), ['', '']);
-  const setIP = ttl => ip.lt.set('ttl' + ttl, (g, w, h) => drawLabel(g, w, h, ['IP', 'TTL ' + ttl]));
-  const LINKS = { wifi: ['Wi-Fi', '帧头', COL.link], eth: ['以太网', '帧头', COL.eth], fiber: ['光纤', '帧头', COL.eth], g5: ['5G', '帧头', '#ff6fa8'] };
-  const setLink = kind => { const [a, b, c] = LINKS[kind]; link.lt.set(kind, (g, w, h) => drawLabel(g, w, h, [a, b])); const col = new THREE.Color(c); link.body.material.color.copy(col); link.body.material.emissive.copy(col); fcs.body.material.color.copy(col); fcs.body.material.emissive.copy(col); };
-  setIP(64); setLink('wifi');
+  const fcs = block('fcs', new THREE.Color(COL.link), null);
+  const LINKS = { wifi: ['Wi-Fi', COL.link], eth: ['以太网', COL.eth], fiber: ['光纤', COL.eth], g5: ['5G', '#ff6fa8'] };
+  const setLink = kind => { const [a, c] = LINKS[kind]; link.lt.set(kind, (g, w, h) => drawLabel(g, w, h, [a])); const col = new THREE.Color(c); link.body.material.color.copy(col); link.body.material.emissive.copy(col); fcs.body.material.color.copy(col); fcs.body.material.emissive.copy(col); };
+  setLink('wifi');
   // 半透明外壳（「信封」）
   const shell = (x0, x1, pad, color) => { const m = new THREE.Mesh(KIT.rbox(x1 - x0 + 2 * pad, PK.h + 2 * pad, PK.d + 2 * pad, .04, 3), new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: 0, roughness: .15, metalness: 0, depthWrite: false, side: THREE.DoubleSide })); m.position.x = (x0 + x1) / 2; m.renderOrder = 3; pk.add(m); return m; };
   const shells = { tcp: shell(SEG.tcp[0], SEG.data[1], .05, COL.tcpHex), ip: shell(SEG.ip[0], SEG.data[1], .1, COL.ipHex), link: shell(SEG.link[0], SEG.fcs[1], .15, COL.linkHex) };
@@ -137,12 +137,23 @@ export function buildLab(KIT, { cerf, kahn, mapImg }) {
   const plate = mesh(KIT.rbox(.5, .1, .01, .01), rAlu); plate.position.set(1.45, .38, 1.0); R.add(plate);
 
   /* ---- 重传演示：两台主机 ---- */
-  const host = x => { const g = new THREE.Group(); g.position.set(x, 0, LAB.lane.z); scene.add(g); const b = mesh(KIT.rbox(.9, .5, .7, .04), rDark); b.position.y = .25; g.add(b); const s = mesh(new THREE.PlaneGeometry(.6, .22), KIT.M.emissive(0x9fd8ff, .5), { cast: false }); s.position.set(0, .28, .352); g.add(s); return g; };
-  const sender = host(LAB.lane.x0), receiver = host(LAB.lane.x1);
-  const lane = mesh(new THREE.BoxGeometry(LAB.lane.x1 - LAB.lane.x0 - .9, .006, .06), KIT.M.gold({ rough: .45 })); lane.position.set(0, .004, LAB.lane.z); scene.add(lane);
-  const segGeo = KIT.rbox(.42, .22, .3, .03, 3), segs = [], acks = [];
-  for (let i = 0; i < 4; i++) { const m = mesh(segGeo, KIT.M.emissive(COL.tcpHex, 1.6)); m.visible = false; scene.add(m); segs.push(m); }
-  for (let i = 0; i < 3; i++) { const m = mesh(KIT.rbox(.26, .14, .2, .02, 2), KIT.M.emissive(0x7ee08a, 1.6)); m.visible = false; scene.add(m); acks.push(m); }
+  // 主机和包都做得比较大，远景里也看得清（可读性精修）；主机屏幕上直接写「发送方 / 接收方」，包的正面写序号，确认包写「确认」
+  const textTex = (w, h, text, { bg = null, color = '#06101a', k = .7 } = {}) => {
+    const W = 512, H = Math.round(W * h / w);
+    return KIT.canvasTex(W, H, (g) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, W, H); } g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(Math.min(H * k, W / (text.length * 1.05)))}px ${SANS}`; g.fillText(text, W / 2, H * .54); }, { aniso: 16 });
+  };
+  const host = (x, label) => {
+    const g = new THREE.Group(); g.position.set(x, 0, LAB.lane.z); scene.add(g);
+    const b = mesh(KIT.rbox(1.15, .62, .86, .05), rDark); b.position.y = .31; g.add(b);
+    const s = mesh(new THREE.PlaneGeometry(.98, .38), new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: textTex(.98, .38, label, { bg: '#9fd8ff', color: '#0a1622', k: .62 }), emissiveIntensity: .62, roughness: 1, metalness: 0 }), { cast: false });
+    s.position.set(0, .33, .432); g.add(s); return g;
+  };
+  const sender = host(LAB.lane.x0, '发送方'), receiver = host(LAB.lane.x1, '接收方');
+  const lane = mesh(new THREE.BoxGeometry(LAB.lane.x1 - LAB.lane.x0 - 1.15, .008, .08), KIT.M.gold({ rough: .45 })); lane.position.set(0, .005, LAB.lane.z); scene.add(lane);
+  const face = (parent, w, h, z, text) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: textTex(w, h, text), transparent: true, toneMapped: false, depthWrite: false })); m.position.z = z; parent.add(m); return m; };
+  const segGeo = KIT.rbox(.6, .3, .4, .04, 3), segs = [], acks = [];
+  ['#1', '#2', '#3', '#2'].forEach(n => { const m = mesh(segGeo, KIT.M.emissive(COL.tcpHex, 1.6)); m.visible = false; scene.add(m); face(m, .54, .27, .202, n); segs.push(m); });
+  for (let i = 0; i < 3; i++) { const m = mesh(KIT.rbox(.52, .26, .3, .03, 2), KIT.M.emissive(0x7ee08a, 1.6)); m.visible = false; scene.add(m); face(m, .48, .23, .152, '确认'); acks.push(m); }
 
   /* ---- 分层：三种链路介质 ---- */
   const media = new THREE.Group(); media.position.copy(LAB.layers); scene.add(media);
@@ -174,7 +185,7 @@ export function buildLab(KIT, { cerf, kahn, mapImg }) {
   const map = mesh(new THREE.PlaneGeometry(7.0, 5.0), new THREE.MeshStandardMaterial({ map: mapTex, roughness: .8, emissive: 0xffffff, emissiveMap: mapTex, emissiveIntensity: .25 }), { cast: false });
   map.rotation.x = -Math.PI / 2; map.position.copy(LAB.map).add(V(0, .006, 0)); scene.add(map);
 
-  return { scene, aim, pk, parts, shells, setIP, setLink, router: R, leds, sender, receiver, segs, acks, media: { fiber, wifi, g5, arcs }, desk, map, studio: st };
+  return { scene, aim, pk, parts, shells, setLink, router: R, leds, sender, receiver, lane, segs, acks, media: { fiber, wifi, g5, arcs }, desk, map, studio: st };
 }
 
 /* 1974 年论文首页：按 IEEE Trans. Commun. 版式排印（标题、作者、摘要第一句与引言第一句；其余正文用灰条示意） */
