@@ -1,6 +1,7 @@
 /* 14 · 今天（2026）
    A  夜里的地球（NASA 夜光 + 大气）上空，16 754 颗真实在轨卫星（CelesTrak，2026-10-18 01:42 UTC 推算）沿各自轨道运行（时间加速 60 倍）；
       一颗星链 V2 Mini 从镜头前掠过（为看清形状，模型放大约 1 000 倍）
+      字幕说到「地面与海底…光缆彼此交织」（7.0–13.4）时，卫星下方画出在用的海底光缆（TeleGeography，与第 11 章同一份数据），面板加一行图例
    B  地球缓转：约 60 亿人在线 → 约 22 亿人尚未接入（标出撒哈拉以南非洲与南亚）
    C  镜头转向晨昏线，太阳从地球边缘升起
    卫星位置在顶点着色器里算（src/props/14/orbit.js）。所有动画都是 t 的纯函数。
@@ -8,6 +9,7 @@
             J. McDowell 统计在轨工作卫星 16 988 颗、星链 11 140 颗（2026-10-12）。两者口径不同，画面上只写两者共同的「约 1.7 万颗」（星链占比属于细节，可读性精修时从画面上拿掉）。
    可读性精修：每个镜头同一时刻最多 2 个引线标注 + 1 个信息面板；每条标注完整停留 ≥ 3.5 秒、相邻标注错开 ≥ 0.8 秒；
    面板底色不透明度 .86，主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」，不重复字幕。
+   C 段前半曝光提高到 2.3（原 1.55 时前 6 秒几乎全黑，看不出地球的弧线），太阳露头前降回 1.2。
    B 拆成两段：B1 留在美洲上空（灯光 = 在线的人），B2 换到能同时看清非洲和南亚的角度，并叠一层淡淡的海岸线（夜面原本全黑，看不出是哪块大陆）。 */
 import * as THREE from 'three';
 import { V, ss, lerp, clamp, easeIO, camPath, applyCam } from '../engine/util.js';
@@ -25,7 +27,7 @@ export default {
   card: {"title": "今天", "short": "今天", "meta": "2026"},
   stamps: [[0, "2026"]],
   caps: [[0.4, 6.6, "今天，近地轨道上运行着上万颗卫星，把信号送到海洋、沙漠和高山。"], [7.0, 13.4, "地面与海底，数千万公里的光缆彼此交织；空中，基站与卫星昼夜不停地收发电波。"], [13.8, 20.0, "约 60 亿人连在同一张网上——差不多是全人类的四分之三。"], [20.4, 27.0, "但仍有约 22 亿人没有用上互联网，其中 96% 生活在中低收入国家。"], [27.4, 33.6, "这场跑了一百六十年的接力，还远没有跑完。"]],
-  credits: ['assets/data/celestrak/sats_T0.json', 'assets/data/naturalearth/ne_110m_land.geojson', 'assets/earth/earth_day_8k.jpg', 'assets/earth/earth_clouds_8k.jpg', 'assets/earth/earth_lights_8k.jpg', 'assets/earth/earth_normal_4k.png', 'assets/earth/stars_8k.jpg'],
+  credits: ['assets/data/celestrak/sats_T0.json', 'assets/data/telegeography/cable-geo.json', 'assets/data/telegeography/cables-all-details.json', 'assets/data/naturalearth/ne_110m_land.geojson', 'assets/earth/earth_day_8k.jpg', 'assets/earth/earth_clouds_8k.jpg', 'assets/earth/earth_lights_8k.jpg', 'assets/earth/earth_normal_4k.png', 'assets/earth/stars_8k.jpg'],
   async build(ctx) {
     const { KIT, A } = ctx;
     const sE = new THREE.Scene();
@@ -36,6 +38,15 @@ export default {
     const land = await A.json('assets/data/naturalearth/ne_110m_land.geojson'), coast = [];
     for (const f of land.features) for (const ring of [f.geometry.coordinates[0]]) if (ring.length >= 10) coast.push(E.path(ring.map(c => [c[1], c[0]]), { width: 1.6, color: 0xd6e4ff, opacity: 0, alt: .015, maxDeg: 1 }));
     const setCoast = k => { for (const m of coast) { m.visible = k > .002; m.material.uniforms.uOp.value = .34 * k; } };
+    // 在用海底光缆（TeleGeography，与第 11 章同一份数据）：字幕说到「地面与海底…光缆彼此交织」（7.0–13.4）时在卫星下方画出来，B1 开头淡出
+    const details = await A.json('assets/data/telegeography/cables-all-details.json');
+    const live = new Set(Object.values(details).filter(c => !c.is_planned).map(c => c.id));
+    const CAB = await E.cables(f => live.has(f.properties && f.properties.id), { width: 1.5, opacity: 0, intensity: 1.35, head: 0 });
+    CAB.lines.forEach((l, i) => { l.ph = (i * .618) % 1; });
+    const setCables = t => {
+      const k = ss(7.0, 8.0, t) * (1 - ss(14.2, 16.0, t)); CAB.group.visible = k > .002; if (!CAB.group.visible) return;
+      for (const l of CAB.lines) l.mesh.set({ opacity: .9 * k, head: easeIO(ss(7.0 + .9 * l.ph, 8.6 + .9 * l.ph, t)), pulse: 1.2, pulseSpeed: .35, pulseLen: .06, time: t + l.ph * 3 });
+    };
     // 星链 V2 Mini（从镜头前掠过）+ 照亮它的阳光与一点地球反照
     const sat = starlinkV2Mini(KIT); sat.scale.setScalar(SAT_SCALE); sE.add(sat);
     const sunL = new THREE.DirectionalLight(0xfff4e6, 3.2); sunL.position.copy(E.sun).multiplyScalar(50); sE.add(sunL); sE.add(sunL.target);
@@ -43,7 +54,7 @@ export default {
     const camFill = new THREE.PointLight(0xdfe8ff, 0, 0, 0); sE.add(camFill);   // 跟着镜头的柔光，让掠过的卫星看得清形状（夜侧本该是剪影）
     const disc = E.sunDisc(sE, { k: 40, size: 2.6 });
     const LL = (a, b, h = 0) => E.ll(a, b, h);
-    const setSky = (t, cam, flyK = 0, coastK = 0) => { E.update(t, cam); SAT.material.uniforms.uTau.value = t * SPEED; sat.visible = flyK > 0; setCoast(coastK); };
+    const setSky = (t, cam, flyK = 0, coastK = 0) => { E.update(t, cam); SAT.material.uniforms.uTau.value = t * SPEED; sat.visible = flyK > 0; setCoast(coastK); setCables(t); };
 
     /* ================= A · 轨道 ================= */
     const camA = KIT.cam(34, .002, 500);
@@ -66,12 +77,18 @@ export default {
       ink.text(g, '星链卫星', X + 22, Y + 50, { font: ink.sans(30, 600), color: ink.accent });
       ink.text(g, '翼展约 30 米 · 模型已放大', X + 22, Y + 94, { font: ink.sans(22), color: TXT2 });
     } });
-    ctx.draw2d({ shot: shA, t0: 7.0, t1: 13.8, draw(g) {
+    ctx.draw2d({ shot: shA, t0: 7.0, t1: 13.8, draw(g, t) {
       const Wd = 420, X = 1920 - 64 - Wd, Y = 104, pad = 22;
-      panelBox(g, X, Y, Wd, 196);
+      panelBox(g, X, Y, Wd, 252);
       ink.text(g, '每个光点是一颗卫星', X + pad, Y + 48, { font: ink.sans(28, 600), color: TXT });
       ink.text(g, '约 1.7 万颗', X + pad, Y + 122, { font: ink.cond(62, 600), color: ink.accent });
       ink.text(g, '真实轨道 · 时间加速 60 倍', X + pad, Y + 170, { font: ink.sans(22), color: TXT2 });
+      // 第二行图例：彩色细线 = 海底光缆（跟着光缆一起淡入）
+      g.save(); g.globalAlpha *= ss(7.4, 8.2, t);
+      g.fillStyle = 'rgba(235,235,230,.22)'; g.fillRect(X + pad, Y + 194, Wd - 2 * pad, 1);
+      ['#58c4f5', '#f2a33a', '#9be36a'].forEach((c, i) => { g.strokeStyle = c; g.lineWidth = 3; g.beginPath(); g.moveTo(X + pad, Y + 220 + i * 6 - 6); g.lineTo(X + pad + 46, Y + 226 + i * 6 - 12); g.stroke(); });
+      ink.text(g, '彩色细线：在用的海底光缆', X + pad + 62, Y + 230, { font: ink.sans(24), color: TXT });
+      g.restore();
     } });
 
     /* ================= B1 · 连接的人（美洲上空：灯光 = 在线的人） ================= */
@@ -98,8 +115,8 @@ export default {
     const pC = camPath([[27.4, LL(14, 14, 1.7).toArray(), LL(10, 62, 0).toArray(), 36], [40.6, LL(16, 31, 1.6).toArray(), LL(12, 78, .4).toArray(), 36]]);
     // 夜面很暗：前半段曝光提高，太阳升起前（33–36.5 s）降回，免得日出过曝
     const shC = ctx.shot({ name: '14.C 日出', t0: 27.4, in: { type: 'dissolve', dur: 1.0 }, scene: sE, camera: camC,
-      post: { exposure: 1.55, grade: ctx.grade.space, vignette: .3, grain: .02, bloom: { strength: .45, radius: .8 } },
-      update(t) { applyCam(camC, pC(t), t, 0); setSky(t, camC); shC.post.exposure = lerp(1.55, 1.2, ss(33, 36.5, t)); SAT.material.uniforms.uOp.value = .6; disc.userData.update && disc.userData.update(); } });
+      post: { exposure: 2.3, grade: ctx.grade.space, vignette: .3, grain: .02, bloom: { strength: .45, radius: .8 } },
+      update(t) { applyCam(camC, pC(t), t, 0); setSky(t, camC); shC.post.exposure = lerp(2.3, 1.2, ss(32.5, 36.5, t)); SAT.material.uniforms.uOp.value = .6; disc.userData.update && disc.userData.update(); } });
 
     /* ================= 音效 ================= */
     ctx.cue(.3, 'sub', .3); ctx.cue(FLY0 + .2, 'whoosh', 2.4, .22); ctx.cue(7.0, 'blip', 900, .05);

@@ -240,12 +240,13 @@ export default {
       const uw = g.measureText('毫秒').width; g.font = '600 104px "Barlow Condensed","Arial Narrow",sans-serif'; g.fillText(`${Math.round(ms)}`, 700 - uw - 14, 150);
       g.fillStyle = 'rgba(240,240,236,.85)'; g.font = '500 32px "Noto Sans SC","PingFang SC",sans-serif'; g.fillText(ms >= 98 ? '已送达' : '…', 700, 206); ovTex.needsUpdate = true;
     };
+    // 白底聊天界面 + 默认泛光会让整个画面像蒙了一层雾：泛光压低、屏幕亮度 .82、加一点对比度，两条消息都要看得清
     ctx.shot({
       offline: true, t0: 300, t1: 312, name: '00.X reply', scene: K.scene, camera: camO,
-      post: { exposure: 1.0, dof: { focus: .26, aperture: .003, maxBlur: 10 }, grade: { tint: [1.04, 1.01, .95] }, vignette: .28 },
+      post: { exposure: .96, ao: { radius: .05, intensity: .8 }, bloom: { strength: .03 }, dof: { focus: .26, aperture: .002, maxBlur: 6 }, grade: { tint: [1.04, 1.01, .95], saturation: 1.02, contrast: 1.08 }, vignette: .28 },
       update(t, st) {
         const c = pathO(t); applyCam(camO, c, t, .001);
-        shScreen(t); K.phone.setScreenK(1.0); K.phone.group.position.x = 0;
+        shScreen(t); K.phone.setScreenK(.82); K.phone.group.position.x = 0;
         const d = .26, hh = d * Math.tan(15 * Math.PI / 180), hw = hh * camO.aspect, w = hw * .62, h = w / 3;
         ov.scale.set(w, h, 1); ov.position.set(hw - w / 2 - hw * .06, hh - h / 2 - hh * .08, -d); paintOv(st);
       },
