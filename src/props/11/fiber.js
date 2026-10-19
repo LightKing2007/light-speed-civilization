@@ -54,10 +54,11 @@ export function buildCore(KIT) {
     g.fillStyle = '#1d4552'; g.fillRect(0, y(1), w, y(-1) - y(1));
     g.fillStyle = 'rgba(170,230,255,.8)'; g.fillRect(0, y(1) - 2, w, 4); g.fillRect(0, y(-1) - 2, w, 4);
   }, { srgb: true, aniso: 16 });
-  const cut = mesh(new THREE.PlaneGeometry(L, 2 * R), new THREE.MeshStandardMaterial({ map: cutTex, roughness: .6, metalness: 0, emissive: 0xffffff, emissiveMap: cutTex, emissiveIntensity: .45, envMapIntensity: .2 }), { cast: false });
+  // 可读性精修：剖面几乎不反光（低机位斜看时不再泛成一大片灰），纤芯带与包层带靠颜色区分
+  const cut = mesh(new THREE.PlaneGeometry(L, 2 * R), new THREE.MeshStandardMaterial({ map: cutTex, roughness: .95, metalness: 0, emissive: 0xffffff, emissiveMap: cutTex, emissiveIntensity: .55, envMapIntensity: .04 }), { cast: false });
   cut.rotation.x = -Math.PI / 2; cut.position.x = L / 2; scene.add(cut);
   // 下半个圆柱：玻璃体
-  const body = mesh(new THREE.CylinderGeometry(R, R, L, 96, 1, true, Math.PI, Math.PI), new THREE.MeshPhysicalMaterial({ color: 0x4a6a7a, roughness: .12, metalness: 0, transparent: true, opacity: .1, clearcoat: 1, side: THREE.DoubleSide, depthWrite: false }), { cast: false });
+  const body = mesh(new THREE.CylinderGeometry(R, R, L, 96, 1, true, Math.PI, Math.PI), new THREE.MeshPhysicalMaterial({ color: 0x4a6a7a, roughness: .3, metalness: 0, transparent: true, opacity: .1, clearcoat: .2, envMapIntensity: .3, side: THREE.DoubleSide, depthWrite: false }), { cast: false });
   body.rotation.z = Math.PI / 2; body.position.x = L / 2; scene.add(body);
   const coreTube = mesh(new THREE.CylinderGeometry(1, 1, L, 64, 1, true, Math.PI, Math.PI), new THREE.MeshBasicMaterial({ color: 0x5fb8d8, transparent: true, opacity: .08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), { cast: false });
   coreTube.rotation.z = Math.PI / 2; coreTube.position.x = L / 2; scene.add(coreTube);

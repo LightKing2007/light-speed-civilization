@@ -37,7 +37,7 @@ export function starlinkV2Mini(KIT) {
   const bodyM = new THREE.MeshPhysicalMaterial({ color: 0x9aa0a8, metalness: .8, roughness: .35 });
   const body = new THREE.Mesh(new THREE.BoxGeometry(4.1, .35, 2.7), bodyM); g.add(body);
   const phased = new THREE.Mesh(new THREE.BoxGeometry(3.6, .04, 2.2), new THREE.MeshPhysicalMaterial({ color: 0xd8d6d0, roughness: .6 })); phased.position.y = -.2; g.add(phased);
-  const cellTex = KIT.canvasTex(512, 128, (c, w, h) => { c.fillStyle = '#0d1530'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(150,170,220,.35)'; c.lineWidth = 1; for (let x = 0; x < w; x += 16) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } for (let y = 0; y < h; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); } }, { aniso: 16 });
+  const cellTex = KIT.canvasTex(512, 128, (c, w, h) => { c.fillStyle = '#1a2a52'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(170,190,235,.5)'; c.lineWidth = 1; for (let x = 0; x < w; x += 16) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } for (let y = 0; y < h; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); } }, { aniso: 16 });
   const panelM = new THREE.MeshPhysicalMaterial({ map: cellTex, metalness: .4, roughness: .25, clearcoat: 1, clearcoatRoughness: .1 });
   for (const s of [-1, 1]) {
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 1.2, 8), bodyM); arm.rotation.z = Math.PI / 2; arm.position.x = s * 2.65; g.add(arm);

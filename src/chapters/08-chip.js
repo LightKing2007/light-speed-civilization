@@ -8,7 +8,8 @@
    道具在 src/props/08/chips.js。所有动画都是 t 的纯函数。
    标注原则（可读性精修）：每个镜头同一时刻最多 2 个引线标注 + 1 个信息面板；每条标注完整停留 ≥ 3.5 秒、相邻标注错开 ≥ 0.8 秒；
    面板底色不透明度 .86，主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」，不重复字幕。
-   A 中段改成两块芯片同框（基尔比、诺伊斯两个标注都停够时间）；B 先用全景把整台光刻机放在字幕区之上，再下探到晶圆。 */
+   A 中段改成两块芯片同框（基尔比、诺伊斯两个标注都停够时间）；B 先用全景把整台光刻机放在字幕区之上，再下探到晶圆；
+   C 偏俯视取景，白色陶瓷封装在画面中上部、不压在字幕后面；E2 的亮照片上字幕背后垫一层柔和暗带。 */
 import * as THREE from 'three';
 import { V, ss, lerp, clamp, easeIO, camPath, applyCam } from '../engine/util.js';
 import { ink } from '../engine/hud.js';
@@ -16,6 +17,10 @@ import { buildFirstICs, buildLitho, buildPackages, buildNano } from '../props/08
 /* 屏幕文字的统一样式 */
 const TXT = 'rgba(246,246,242,.97)', TXT2 = 'rgba(238,238,232,.9)';
 const panelBox = (g, x, y, w, h) => { g.fillStyle = 'rgba(8,10,14,.86)'; g.fillRect(x, y, w, h); ink.rect(g, x, y, w, h, 'rgba(235,235,230,.22)', 1); };
+/** 亮画面（照片、白色陶瓷）上字幕背后的柔和暗带：画在 Canvas 层，位于字幕 DOM 之下，不加框 */
+const capScrim = (ctx, shot, t0, t1, k = .55) => ctx.draw2d({ shot, t0, t1, fade: .4, draw(g) {
+  g.save(); g.translate(960, 972); g.scale(1, .14); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1000);
+  gr.addColorStop(0, `rgba(6,7,9,${k})`); gr.addColorStop(.6, `rgba(6,7,9,${k * .72})`); gr.addColorStop(1, 'rgba(6,7,9,0)'); g.fillStyle = gr; g.fillRect(-1000, -1000, 2000, 2000); g.restore(); } });
 /** 署名条（左下，约 x 132–，y 720–850）后面的暗底：画在 Canvas 层，位于署名条 DOM 之下 */
 const lowerScrim = (ctx, t0, t1, w) => ctx.draw2d({ t0, t1, fade: .4, draw(g) { const gr = g.createLinearGradient(100, 0, 100 + w, 0); gr.addColorStop(0, 'rgba(6,8,10,.78)'); gr.addColorStop(.75, 'rgba(6,8,10,.6)'); gr.addColorStop(1, 'rgba(6,8,10,0)'); g.fillStyle = gr; g.fillRect(100, 706, w, 160); } });
 
@@ -83,7 +88,7 @@ export default {
     ctx.callout({ shot: shB, at: V(-.06, .62, .06), title: '掩模', sub: '像底片，刻着电路图形', t0: B0 + .2, t1: 12.2, side: 'left', dx: 170, dy: -40, style: 'accent' });
     ctx.callout({ shot: shB, at: V(0, .002, 0), title: '硅晶圆', sub: '一格一格地曝光', t0: B0 + 1.1, t1: 13.4, side: 'right', dx: 190, dy: -70 });
     // 工序条：当前这一步亮起（字号放大，去掉每 0.9 秒换一次、来不及读的说明行）
-    ctx.draw2d({ t0: 12.6, t1: 19.0, draw(g, t) {
+    ctx.draw2d({ shot: shB, t0: 12.6, t1: 19.0, draw(g, t) {
       const bw = 128, gap = 34, h = 56, x0 = 960 - (PROC.length * bw + (PROC.length - 1) * gap) / 2, y = 96;
       let cur = 0; PROC.forEach((p, i) => { if (t >= p[1]) cur = i; });
       panelBox(g, x0 - 18, y - 16, PROC.length * bw + (PROC.length - 1) * gap + 36, h + 32);
@@ -105,13 +110,14 @@ export default {
     const LID0 = PK.lid.position.clone();
     const setLid = k => { PK.lid.position.set(LID0.x + .011 * ss(.35, 1, k), LID0.y + .0045 * Math.sin(Math.PI * Math.min(1, k * 1.15)) + .0001 * k, LID0.z + .004 * ss(.35, 1, k)); PK.lid.rotation.set(-.35 * Math.sin(Math.PI * k), 0, -.5 * Math.sin(Math.PI * Math.min(1, k * 1.15)) * (1 - k * .8)); };
     const camC = KIT.cam(30, .001, 2);
-    // 盖板 19.6–20.8 掀开，之后推近裸片，裸片标注停够 3.5 秒
-    const pC = camPath([[18.8, [-.03, .03, .042], [0, .002, 0], 30], [20.4, [-.022, .027, .036], [.0008, .0026, 0], 29], [21.8, [-.006, .023, .026], [.0016, .0038, 0], 27], [25.8, [.002, .019, .02], [.0018, .004, 0], 26]]);
+    // 盖板 19.6–20.8 掀开，之后推近裸片，裸片标注停够 3.5 秒；
+    // 取景偏俯视、对焦点放在机身前沿之外，整块封装落在画面中上部，白色陶瓷不压在字幕后面
+    const pC = camPath([[18.8, [-.03, .036, .04], [0, .0015, .003], 30], [20.4, [-.021, .033, .034], [.0008, .002, .0032], 29], [21.8, [-.005, .03, .025], [.0018, .003, .003], 27], [25.8, [.0024, .028, .018], [.0022, .0034, .0028], 26]]);
     const shC = ctx.shot({ name: '08.C Intel 4004', t0: 18.8, in: { type: 'dissolve', dur: .8 }, scene: PK.scene, camera: camC,
       post: { exposure: 1.06, ao: { radius: .002, intensity: .9 }, dof: { focus: .05, aperture: .0008, maxBlur: 5 }, grade: ctx.grade.warm, vignette: .34, bloom: { strength: .06 } },
       update(t) { print.visible = false; PK.modern.visible = false; setLid(ss(19.6, 20.8, t)); const c = pC(t); applyCam(camC, c, t, .0004); shC.post.dof.focus = camC.position.distanceTo(pa.die); } });
     ctx.callout({ shot: shC, at: pa.label, title: 'Intel 4004', sub: '复原 · 金色盖板下是芯片', t0: 19.2, t1: 23.8, side: 'left', dx: 120, dy: -120 });
-    ctx.callout({ shot: shC, at: pa.die, title: '4004 裸片', sub: '约 3×4 mm · 2300 个晶体管', t0: 20.6, t1: 25.4, side: 'right', dx: 150, dy: -130, style: 'accent' });
+    ctx.callout({ shot: shC, at: pa.die, title: '4004 裸片', sub: '真正的芯片 · 约 3×4 mm', t0: 20.6, t1: 25.4, side: 'right', dx: 150, dy: -130, style: 'accent' });
 
     /* ================= D · 摩尔定律 ================= */
     const rupp = (await A.text('assets/data/moore/rupp_50yrs_transistors.dat')).trim().split('\n').map(l => l.trim().split(/\s+/).map(Number)).filter(r => r.length === 2 && r[1] > 0).map(([y, k]) => [y, k * 1e3]);
@@ -169,9 +175,9 @@ export default {
       post: { exposure: 1.3, ao: { radius: .8, intensity: .9 }, dof: { focus: 18, aperture: .002, maxBlur: 6 }, grade: ctx.grade.cool, vignette: .3, bloom: { strength: .1 } },
       update(t) { const c = pE(t); applyCam(camE, c, t, .0005); shE.post.dof.focus = camE.position.distanceTo(c.l); NN.virus.rotation.set(.2, .4 + t * .05, 0); } });
     // 只留两处对比：几纳米厚的沟道 ↔ 约 100 nm 的病毒；比例尺给出尺度
-    ctx.callout({ shot: shE, at: V(.6, 2.0, 1.5), title: '纳米片沟道', sub: '每片只有几纳米厚', t0: 38.6, t1: 44.7, side: 'right', dx: 140, dy: 110, style: 'accent' });
+    ctx.callout({ shot: shE, at: V(.6, 2.0, 1.5), title: '纳米片沟道', sub: '电流通道，每片几纳米厚', t0: 38.6, t1: 44.7, side: 'right', dx: 140, dy: 110, style: 'accent' });
     ctx.callout({ shot: shE, at: V(10.2, 7.4, 1.6), title: '病毒（示意）', sub: '直径约 100 nm', t0: 40.2, t1: 44.7, side: 'right', dx: 130, dy: -110 });   // 锚点在病毒朝向镜头的左侧表面
-    ctx.measure({ shot: shE, a: V(-4.5, -1.6, 2.4), b: V(-2.5, -1.6, 2.4), label: '20 nm', t0: 39.4, t1: 44.6, off: 28 });
+    ctx.measure({ shot: shE, a: V(-4.5, 0, 2.3), b: V(-2.5, 0, 2.3), label: '20 nm', t0: 39.4, t1: 44.6, off: 28 });   // 底座上沿：比例尺不进字幕区
 
     /* ================= E2 · 一个房间 → 指甲盖 ================= */
     const camF = KIT.cam(30, .001, 2);
@@ -180,6 +186,7 @@ export default {
       post: { exposure: .98, ao: { radius: .003, intensity: .85 }, dof: { focus: .07, aperture: .0012, maxBlur: 6 }, grade: ctx.grade.warm, vignette: .34, bloom: { strength: .06 } },
       update(t) { print.visible = true; PK.modern.visible = true; setLid(1); const c = pF(t); applyCam(camF, c, t, .0004); shF.post.dof.focus = camF.position.distanceTo(V(.05, .0015, .004)); } });
     lowerScrim(ctx, 45.0, 49.4, 560);   // 照片很亮：署名条后面垫一块渐隐的暗底
+    capScrim(ctx, shF, 44.4, 52.2);     // 字幕背后也垫一层
     ctx.lower({ t0: 45.0, t1: 49.4, name: 'ENIAC · 1946', meta: '弹道研究实验室 · 占满一个大房间', credit: '照片：美国陆军 · 公有领域' });
     // 对比面板：标题直接给结论，两行对比，数字放大
     ctx.draw2d({ t0: 47.4, t1: 52.2, draw(g, t) {

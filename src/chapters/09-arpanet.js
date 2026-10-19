@@ -8,8 +8,10 @@
    道具在 src/props/09/net.js。所有动画都是 t 的纯函数。
    标注原则（可读性精修）：每个镜头同一时刻最多 2 个标注 + 1 个信息面板；每条标注完整停留 ≥ 3.5 秒；面板底色不透明度 ≥ .82，
    主要文字 ≥ 24 px、次要 ≥ 20 px、数字 ≥ 30 px；只说「看哪个部件 / 正在发生什么」，不重复字幕。
-   A1 只看四个点亮起、连线（章节卡占着左边，不再加地名小字）；IMP 照片延长到 4.5 秒，署名条停够时间；
-   B1 只留两端地名 + 一个「斯坦福研究所收到」面板；字母提前飞，崩溃画面停够 3.5 秒；C 的三个面板依次出现在右上角同一位置。 */
+   A1 只看四个点亮起、连线（不加地名小字）：镜头从全国远景推向西部，四个节点加大、偏橙，落在章节卡右边；
+   IMP 照片 3.2–7.4 秒，署名条在照片完全可见时停满 3.5 秒；亮照片上字幕背后垫一层柔和暗带；
+   B1 只留两端地名 + 一个「斯坦福研究所收到」面板；字母提前飞，崩溃画面停够 3.5 秒；C 的三个面板依次出现在右上角同一位置；
+   C 里五个包的出发时间 / 路线错开，包上的标记互不遮挡，排队的那一行抬高到发送方上方。 */
 import * as THREE from 'three';
 import { V, ss, lerp, clamp, easeIO, camPath, applyCam, gcArc, ll } from '../engine/util.js';
 import { ink } from '../engine/hud.js';
@@ -22,11 +24,15 @@ const tag = (g, s, x, y, { font = ink.sans(26, 600), color = TXT, align = 'left'
   g.font = font; const w = g.measureText(s).width, x0 = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x;
   g.fillStyle = 'rgba(8,10,14,.84)'; g.fillRect(x0 - 10, y - h - 5, w + 20, h + 16); ink.text(g, s, x, y, { font, color, align });
 };
+/** 亮照片上字幕背后的柔和暗带：画在 Canvas 层，位于字幕 DOM 之下，不加框 */
+const capScrim = (ctx, shot, t0, t1, k = .55) => ctx.draw2d({ shot, t0, t1, fade: .4, draw(g) {
+  g.save(); g.translate(960, 972); g.scale(1, .14); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1000);
+  gr.addColorStop(0, `rgba(6,7,9,${k})`); gr.addColorStop(.6, `rgba(6,7,9,${k * .72})`); gr.addColorStop(1, 'rgba(6,7,9,0)'); g.fillStyle = gr; g.fillRect(-1000, -1000, 2000, 2000); g.restore(); } });
 /** 署名条（左下，约 x 132–，y 720–850）后面的暗底：画在 Canvas 层，位于署名条 DOM 之下 */
 const lowerScrim = (ctx, t0, t1, w) => ctx.draw2d({ t0, t1, fade: .4, draw(g) { const gr = g.createLinearGradient(100, 0, 100 + w, 0); gr.addColorStop(0, 'rgba(6,8,10,.78)'); gr.addColorStop(.75, 'rgba(6,8,10,.6)'); gr.addColorStop(1, 'rgba(6,8,10,0)'); g.fillStyle = gr; g.fillRect(100, 706, w, 160); } });
 
 /* ---------- 镜头切点 ---------- */
-const A2 = 3.2, B1 = 7.0, B2 = 19.4;   // IMP 照片、加州近景、IMP 日志
+const A2 = 3.2, B1 = 7.4, B2 = 19.4;   // IMP 照片、加州近景、IMP 日志（署名条在照片完全可见时停满 3.5 秒）
 
 /* ---------- B1：LOGIN 的前三个字母 ---------- */
 const KEYS = [['L', 12.9], ['O', 13.9], ['G', 14.9]], FLY = 1.0, CRASH = 14.9 + FLY;   // 崩溃画面停到 B2 之前 3.5 秒
@@ -37,9 +43,9 @@ const plan = (route, t0, holds = {}) => { const legs = []; let t = t0; for (let 
 const MSG = [   // LOGIN 拆成五个包：字母、序号、路线
   { ch: 'L', legs: plan(['S', 'R1', 'R3', 'R4', 'R6', 'D'], 31.3) },
   { ch: 'O', legs: plan(['S', 'R2', 'R4', 'R6', 'D'], 31.6) },
-  { ch: 'G', legs: plan(['S', 'R1', 'R5', 'D'], 32.2) },
+  { ch: 'G', legs: plan(['S', 'R1', 'R5', 'D'], 32.4) },   // 晚一点出发：不和 L 在 R1 附近挤在一起，也不和 O 同时到终点
   { ch: 'I', legs: plan(['S', 'R2', 'R3', 'R5', 'D'], 34.6, { R3: 37.7 }) },   // 本想走 R3→R6，线路断了，在 R3 等了一下改走 R5
-  { ch: 'N', legs: plan(['S', 'R1', 'R3', 'R5', 'D'], 35.2) },
+  { ch: 'N', legs: plan(['S', 'R1', 'R5', 'D'], 35.2) },         // 走上面一条路：不和 I 同时挤在 R3→R5 上；比 I 先到
 ];
 MSG.forEach(m => { m.depart = m.legs[0].t0; m.arrive = m.legs[m.legs.length - 1].t1; });
 const ORDER = [...MSG.keys()].sort((a, b) => MSG[a].arrive - MSG[b].arrive);
@@ -77,8 +83,8 @@ export default {
     const NAMES = Object.keys(SITES), APPEAR = { UCLA: .7, SRI: 1.1, UCSB: 1.5, UTAH: 1.9 };
     const mk = new Float32Array(NAMES.length * 3), mkA = new Float32Array(NAMES.length);
     NAMES.forEach((k, i) => sitePos(k).toArray(mk, i * 3));
-    const markers = KIT.points(mk, { size: 15, color: 0xffd9a0, intensity: 1.7, alphas: mkA, soft: .8, additive: true }); markers.renderOrder = 6; sE.add(markers);
-    const arcs69 = LINKS69.map(([a, b]) => { const pa = SITES[a].ll, pb = SITES[b].ll, d = ll(pa[0], pa[1]).angleTo(ll(pb[0], pb[1])) * E.R; return E.arc(pa, pb, { h: d * .12, width: 1.8, color: 0xffe2bc, opacity: .9, head: 0, alt: .004 }); });
+    const markers = KIT.points(mk, { size: 15, color: 0xffb070, intensity: 2.2, alphas: mkA, soft: .8, additive: true }); markers.renderOrder = 6; sE.add(markers);
+    const arcs69 = LINKS69.map(([a, b]) => { const pa = SITES[a].ll, pb = SITES[b].ll, d = ll(pa[0], pa[1]).angleTo(ll(pb[0], pb[1])) * E.R; return E.arc(pa, pb, { h: d * .12, width: 3.0, color: 0xffd2a0, opacity: .95, head: 0, alt: .004 }); });
     // UCLA → SRI：B1 的主线路
     const main = E.arc(SITES.UCLA.ll, SITES.SRI.ll, { h: .05, width: 2.6, color: 0xffe2bc, opacity: .95, head: 0, glowHead: 1.8, alt: .004 });
     const arcPts = gcArc(SITES.UCLA.ll, SITES.SRI.ll, E.R + .004, .05, 160).map(p => p.applyMatrix4(E.group.matrixWorld));
@@ -86,22 +92,22 @@ export default {
     const setEarth = (t, cam, mode) => {
       E.update(t, cam);
       NAMES.forEach((k, i) => { mkA[i] = mode === 'A' ? ss(APPEAR[k], APPEAR[k] + .3, t) : (k === 'UCLA' || k === 'SRI' ? 1 : .35); });
-      markers.geometry.attributes.aAlpha.needsUpdate = true;
-      arcs69.forEach((m, i) => { m.visible = mode === 'A'; m.set({ head: easeIO(ss(2.0 + i * .2, 2.8 + i * .2, t)) }); });
+      markers.geometry.attributes.aAlpha.needsUpdate = true; markers.material.uniforms.uSize.value = mode === 'A' ? 30 : 15;   // 全国远景里四个点要一眼看得见
+      arcs69.forEach((m, i) => { m.visible = mode === 'A'; m.set({ head: easeIO(ss(1.9 + i * .18, 2.6 + i * .18, t)) }); });   // 四条线在切到 IMP 照片前画完
       main.visible = mode === 'B'; main.set({ head: easeIO(ss(B1 + .6, B1 + 2.4, t)), opacity: t > CRASH ? lerp(.95, .35, ss(CRASH, CRASH + .4, t)) : .95 });
       states.material.opacity = mode === 'A' ? .2 : .12;
     };
     const camA = KIT.cam(34, .01, 400);
-    const pA1 = camPath([[0, LL(31.5, -103, 5.6), LL(38.5, -104), 34], [4.2, LL(32, -110, 4.6), LL(38, -112.5), 34]]);
+    const pA1 = camPath([[0, LL(31.5, -104, 5.6), LL(38.5, -105.5), 34], [3.4, LL(31.0, -118.8, 2.6), LL(36.6, -119.4), 34]]);   // 从全国远景推向西部：四个节点落在章节卡右边、画面中部
     const shA = ctx.shot({ name: '09.A1 美国', t0: 0, in: { type: 'dissolve', dur: 1.2 }, scene: sE, camera: camA,
       post: { exposure: 1.2, grade: ctx.grade.night, vignette: .3, grain: .02, bloom: { strength: .2 } },
       update(t) { applyCam(camA, pA1(t), t, 0); setEarth(t, camA, 'A'); } });
     /* ================= A2 · IMP 照片 ================= */
     const phI = await KIT.photoShot('assets/photos/act3/imp_bbn_ddp516_jurvetson.jpg', { from: { x: 0, y: .76, s: 1.02 }, to: { x: 0, y: .6, s: 1.12 } });
-    ctx.shot({ name: '09.A2 IMP', t0: A2, in: { type: 'dissolve', dur: .7 }, scene: phI.scene, camera: phI.camera,
+    const shI = ctx.shot({ name: '09.A2 IMP', t0: A2, in: { type: 'dissolve', dur: .7 }, scene: phI.scene, camera: phI.camera,
       post: { exposure: 1.0, grade: ctx.grade.warm, vignette: .36, grain: .03 }, update(t) { phI.update((t - A2) / (B1 + .7 - A2)); } });
-    lowerScrim(ctx, A2 + .3, B1 + .8, 640);
-    ctx.lower({ t0: A2 + .3, t1: B1 + .8, name: 'IMP（接口信息处理机）', meta: '每个节点一台，专门负责转发数据', credit: '照片：Steve Jurvetson · CC BY 2.0' });
+    lowerScrim(ctx, A2 + .3, B1 + .4, 640); capScrim(ctx, shI, A2, B1 + .7);
+    ctx.lower({ t0: A2 + .3, t1: B1 + .4, name: 'IMP（接口信息处理机）', meta: '每个节点一台，专门负责转发数据', credit: '照片：Steve Jurvetson · CC BY 2.0' });
 
     /* ================= B1 · L、O……崩溃 ================= */
     const camB = KIT.cam(34, .005, 400);
@@ -114,7 +120,8 @@ export default {
       const pu = proj(sitePos('UCLA')), ps = proj(sitePos('SRI')), red = ss(CRASH, CRASH + .15, t);
       if (pu) tag(g, 'UCLA', pu.x + 26, pu.y - 22);
       if (ps) {
-        tag(g, '斯坦福研究所', ps.x - 22, ps.y - 24, { align: 'right', color: red > .5 ? '#ff8a7a' : TXT });
+        g.save(); g.globalAlpha *= ss(B1 + 1.5, B1 + 1.8, t);   // 比「UCLA」晚 0.9 秒出现：跟着线路画过去
+        tag(g, '斯坦福研究所', ps.x - 22, ps.y - 24, { align: 'right', color: red > .5 ? '#ff8a7a' : TXT }); g.restore();
         if (red > 0) { const u = ((t - CRASH) % 1.2) / 1.2; g.save(); g.globalAlpha *= red * (1 - u); g.strokeStyle = ink.warn; g.lineWidth = 3; g.beginPath(); g.arc(ps.x, ps.y, 12 + 44 * u, 0, 7); g.stroke(); g.restore(); g.fillStyle = ink.warn; g.beginPath(); g.arc(ps.x, ps.y, 8, 0, 7); g.fill(); }
       }
       for (const [ch, t0] of KEYS) {
@@ -157,8 +164,8 @@ export default {
       ink.text(g, s1, bx + 22, by + 41, { font: ink.sans(30, 700), color: ink.accent });
       g.restore();
     } });
-    lowerScrim(ctx, B2 + .2, B2 + 4.5, 620);
-    ctx.lower({ t0: B2 + .2, t1: B2 + 4.5, name: 'IMP 日志', meta: 'UCLA · 1969 年 10 月 29 日', credit: '照片：Andrew Adams（FastLizard4）· CC BY-SA 2.0' });
+    lowerScrim(ctx, B2 + .2, B2 + 4.7, 620); capScrim(ctx, shL, B2, 25.4);
+    ctx.lower({ t0: B2 + .2, t1: B2 + 4.7, name: 'IMP 日志', meta: 'UCLA · 1969 年 10 月 29 日', credit: '照片：Andrew Adams（FastLizard4）· CC BY-SA 2.0' });
 
     /* ================= C · 网络沙盘 ================= */
     const NB = buildBoard(KIT);
@@ -213,11 +220,11 @@ export default {
       // 角色名放在主机下方：包的标记在包的上方，到达接收方时不会压住它
       for (const k of ['S', 'D']) {
         const p = proj(P(k, 0)); if (!p) continue;
-        g.save(); g.globalAlpha *= gl;
+        g.save(); g.globalAlpha *= k === 'S' ? 1 - ss(36.2, 36.6, t) : gl * ss(25.5, 25.8, t);   // 「用户 B」比「用户 A」晚出现；包都出发后，发送方的名字先收起
         tag(g, k === 'S' ? '用户 A' : '用户 B', p.x, p.y + 82, { align: 'center' });   // 两种交换方式用同一对名字，不中途换字
         g.restore();
       }
-      /* 包的标记（字母 + 序号）：还在用户 A 处排队时排成一行「L O G I N」放在发送方上方，出发后 0.35 秒内移到包的正上方跟着走 */
+      /* 包的标记（字母 + 序号）：还在用户 A 处排队时排成一行「L O G I N」放在发送方上方（抬高一些，刚出发的包从下面经过时不相互遮挡），出发后 0.35 秒内移到包的正上方跟着走 */
       const chip = (m, i, x, y) => {
         g.fillStyle = 'rgba(8,10,14,.86)'; g.fillRect(x - 44, y - 50, 88, 50); ink.rect(g, x - 44, y - 50, 88, 50, 'rgba(255,122,48,.6)', 1.2);
         ink.text(g, m.ch, x - 16, y - 11, { font: ink.cond(36, 700), color: '#fff4e6', align: 'center' });
@@ -225,8 +232,9 @@ export default {
       };
       const pS = proj(P('S', .36));
       if (t > 30.9 && t < 43.6 && pS) MSG.forEach((m, i) => {
-        const st = msgPos(i, t); if (!st || st.sink > .5) return; const p = proj(st.p.clone().add(V(0, .16, 0))); if (!p) return;
-        const qx = Math.max(92, pS.x - 140) + i * 96, qy = pS.y - 40, k = easeIO(ss(m.depart, m.depart + .35, t));
+        const st = msgPos(i, t); if (!st || st.sink > .2) return;   // 到站就收起标记，不和下一个到站的包叠在一起
+        const p = proj(st.p.clone().add(V(0, .16, 0))); if (!p) return;
+        const qx = Math.max(92, pS.x - 140) + i * 96, qy = pS.y - 130, k = easeIO(ss(m.depart, m.depart + .35, t));
         g.save(); g.globalAlpha *= ss(30.95 + i * .08, 31.25 + i * .08, t); chip(m, i, lerp(qx, p.x, k), lerp(qy, p.y - 10, k)); g.restore();
       });
       if (t > BREAK) {
@@ -235,7 +243,7 @@ export default {
     } });
     /* 右上角同一位置依次出现三块面板：电路交换 → 分组交换（怎么读包上的标记）→ 接收方按序号拼回 */
     const PX = 1350, PY = 112, PW = 480;
-    ctx.draw2d({ shot: shC, t0: 25.5, t1: 30.7, draw(g, t) {
+    ctx.draw2d({ shot: shC, t0: 26.3, t1: 30.7, draw(g, t) {   // 比两个角色名晚出现，完整停留约 3.8 秒
       const bx = PX + 26, bw = PW - 52, u = clamp((t - C0) / (C1 - C0));
       panelBox(g, PX, PY, PW, 216);
       ink.text(g, '电路交换：一直占线，很少说话', bx, PY + 48, { font: ink.sans(26, 600), color: TXT });

@@ -1,7 +1,7 @@
 /* 13 · 口袋里的电波：道具。
    buildCarPhone：1979 年前后的车载电话（复原示意，1 单位 = 1 m）：听筒（听筒口 / 话筒口的格栅、12 个按键）、托座、卷曲电话线，放在皮革中控台上。
    buildCity：黄昏城市（1 单位 = 10 m）：程序化楼群（窗灯）、街道、地面上的六边形「勘测图」网格（7 色频率组，同色不相邻）、
-              每个小区中心一座三扇区基站；一辆会穿过小区边界的车；楼顶上的 5G 大规模天线阵列面板（8 × 8 交叉振子）与窄波束。 */
+              每个小区中心附近最高的楼顶一座三扇区基站；一辆会穿过小区边界的车；楼顶上的 5G 大规模天线阵列面板（8 × 8 交叉振子）与窄波束。 */
 import * as THREE from 'three';
 import { V, rng } from '../../engine/util.js';
 
@@ -90,16 +90,24 @@ export async function buildCity(KIT) {
     transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4,
   });
   const hex = new THREE.Mesh(new THREE.PlaneGeometry(SPAN, SPAN), hexMat); hex.rotation.x = -Math.PI / 2; hex.position.y = .05; hex.renderOrder = 2; scene.add(hex);
-  // 基站：每个小区中心（落在楼顶或地面）一根桅杆 + 三扇区天线
+  // 基站：每个小区中心附近（4 单位 = 40 m 以内）最高的那栋楼的楼顶，一根桅杆 + 三扇区天线（真实基站多装在楼顶；
+  // 以前直接放在小区中心，常常落进两栋楼之间的窄缝里，航拍几乎看不见）。附近没有楼时（城外）立在地面上。
+  const siteSpot = (x, z) => {
+    let best = null;
+    for (const b of blds) { const p = b.geometry.parameters, dx = Math.max(Math.abs(x - b.position.x) - p.width / 2, 0), dz = Math.max(Math.abs(z - b.position.z) - p.depth / 2, 0); if (Math.hypot(dx, dz) <= 4 && (!best || p.height > best.geometry.parameters.height)) best = b; }
+    if (!best) return V(x, 0, z);
+    const p = best.geometry.parameters, cl = (v, c, s) => Math.min(Math.max(v, c - s / 2 + .5), c + s / 2 - .5);
+    return V(cl(x, best.position.x, p.width), best.position.y + p.height / 2, cl(z, best.position.z, p.depth));
+  };
   const mastM = KIT.M.paint(0xb8bcc2, { rough: .4 }), panelM = KIT.M.paint(0xe6e6e2, { rough: .45 });
   const sites = [];
   for (let q = -HEX.n; q <= HEX.n; q++) for (let r = -HEX.n; r <= HEX.n; r++) {
     const c = hexCenter(q, r); if (Math.hypot(c.x, c.z) > 100) continue;
-    const y0 = roofAt(c.x, c.z), g = new THREE.Group(); g.position.set(c.x, y0, c.z); scene.add(g);
+    const sp = siteSpot(c.x, c.z), y0 = sp.y, g = new THREE.Group(); g.position.copy(sp); scene.add(g);
     const mast = mesh(new THREE.CylinderGeometry(.06, .09, 2.6, 12), mastM); mast.position.y = 1.3; g.add(mast);
     for (let k = 0; k < 3; k++) { const a = k * 2 * Math.PI / 3, p = mesh(KIT.rbox(.22, .9, .08, .02), panelM); p.position.set(Math.cos(a) * .2, 2.3, Math.sin(a) * .2); p.rotation.y = -a + Math.PI / 2; g.add(p); }
     const led = mesh(new THREE.SphereGeometry(.07, 12, 8), KIT.M.emissive(0xff3b2f, 2), { cast: false }); led.position.y = 2.85; g.add(led);
-    sites.push({ q, r, group: g, top: V(c.x, y0 + 2.4, c.z), group7: reuse(q, r), led });
+    sites.push({ q, r, group: g, top: V(sp.x, y0 + 2.4, sp.z), center: c, group7: reuse(q, r), led });
   }
   // 车（穿过小区边界）
   const car = new THREE.Group(); scene.add(car);
