@@ -210,6 +210,8 @@ export async function boot(chapters) {
     return true;
   };
   window.AU = AU;
+  const soundVersion = document.getElementById('soundVersion');
+  if (soundVersion) soundVersion.textContent = AU.version;
   if (RENDER) { document.body.classList.add('render'); started = true; return; }
   livePlayer();
 }

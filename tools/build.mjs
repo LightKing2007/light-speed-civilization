@@ -3,6 +3,7 @@
 //       node tools/build.mjs --dev 05,06 → dev-05,06.html（只含这些章节，互不影响）
 // 环境变量 FILM_EXTRA_CHAPTERS=目录：--dev 时额外在这些目录里找章节（tools/faultcheck.mjs 用它载入故障演练章节）
 import * as esbuild from 'esbuild';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs'; import path from 'node:path'; import url from 'node:url';
 export const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..');
 
@@ -26,7 +27,8 @@ export async function build({ dev = null, minify = !dev } = {}) {
     opts.stdin = { contents: `import { boot } from './engine/film.js';\n${pick.map((f, i) => `import c${i} from './${f}';`).join('\n')}\nboot([${pick.map((_, i) => 'c' + i).join(',')}]);`, resolveDir: path.join(ROOT, 'src'), sourcefile: tag + '-entry.js' };
   } else opts.entryPoints = [path.join(ROOT, 'src/main.js')];
   const res = await esbuild.build(opts);
-  const html = fs.readFileSync(path.join(ROOT, 'src/index.template.html'), 'utf8').replace('<!--SCRIPT-->', `<script src="dist/${tag}.js"></script>`);
+  const revision = createHash('sha256').update(fs.readFileSync(opts.outfile)).digest('hex').slice(0, 16);
+  const html = fs.readFileSync(path.join(ROOT, 'src/index.template.html'), 'utf8').replace('<!--SCRIPT-->', `<script src="dist/${tag}.js?v=${revision}"></script>`);
   const htmlName = dev ? tag + '.html' : 'index.html';
   fs.writeFileSync(path.join(ROOT, dev ? 'dist/' + htmlName : htmlName), dev ? html.replace('<head>', '<head><base href="../">') : html);
   return { js: opts.outfile, html: dev ? 'dist/' + htmlName : htmlName, meta: res.metafile };   // meta.inputs：每个源文件及其 import（导出缓存用）

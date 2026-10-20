@@ -99,7 +99,7 @@ void main(){
  else if(uType==4){vec2 dir=vec2(cos(uP.x),sin(uP.x));vec2 p=(uv-.5)*vec2(uRes.x/uRes.y,1.);float x=dot(p,dir)/(abs(dir.x)*uRes.x/uRes.y*.5+abs(dir.y)*.5)*.5+.5;
   float s=uP.y;float e=f*(1.+s)-s;float m=smoothstep(e,e+s,x);vec3 b=texture(tB,uv).rgb;col=mix(b,a,m);
   col+=uP.z*vec3(1.)*exp(-abs(x-e-s*.5)*uRes.x*.35)*step(.001,f)*step(f,.999);}
- else if(uType==5){vec3 b=texture(tB,uv).rgb;float l=lum(a);float e=f*1.3-.15;float m=smoothstep(e-.15,e+.15,1.-l);col=mix(a,b,clamp(m*(uP.x>0.?1.:1.),0.,1.));col=mix(col,b,smoothstep(.85,1.,f));}
+ else if(uType==5){vec3 b=texture(tB,uv).rgb;float l=lum(a);float e=f*1.3-.15;float m=1.-smoothstep(e-.15,e+.15,1.-l);col=mix(a,b,m);}
  else if(uType==6){vec3 b=texture(tB,uv).rgb;float w=1.-abs(f*2.-1.);col=mix(mix(a,b,step(.5,f)),vec3(1.,.98,.95),pow(w,1.5)*uP.x);}
  else {vec3 b=texture(tB,uv).rgb;col=mix(a,b,f);}
  col*=1.-uFade;

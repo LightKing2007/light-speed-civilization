@@ -59,7 +59,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden;
 #card h2{margin:10px 0 0;font:900 92px/1.05 var(--f-serif);letter-spacing:.06em;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.5)}
 #card .meta{margin-top:20px;font:500 19px var(--f-mono);letter-spacing:.22em;color:var(--ink);opacity:.82}
 /* 角标 */
-#stamp{position:absolute;left:64px;top:52px;display:flex;align-items:baseline;gap:14px;opacity:0;font:500 18px var(--f-mono);letter-spacing:.18em;color:var(--dim);text-shadow:0 1px 6px rgba(0,0,0,.7)}
+#stamp{display:none}
 #stamp b{color:var(--accent);font-weight:600}
 #stamp span{font:500 21px var(--f-sans);letter-spacing:.12em;color:var(--ink)}
 #stamp em{font:600 26px var(--f-cond);font-style:normal;letter-spacing:.06em;color:var(--ink);padding-left:14px;border-left:1px solid var(--faint)}
@@ -152,7 +152,7 @@ body.render #ctrl,body.render #intro,body.render #replay,body.render #loading{di
   <button id="bFull" aria-label="全屏">⤢ 全屏</button>
 </div>
 <div id="intro">
-  <button class="go" id="bGo"><span class="ring"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1l11 6-11 6z"/></svg></span><span class="t">光速文明</span><span class="h">一部关于连接的影片 · 约 12 分钟<br>建议全屏、打开声音</span></button>
+  <button class="go" id="bGo"><span class="ring"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1l11 6-11 6z"/></svg></span><span class="t">光速文明</span><span class="h">一部关于连接的影片 · 约 12 分钟<br>建议全屏、打开声音<br><span id="soundVersion">正在确认配乐版本……</span><br>light-speed-civilization-master</span></button>
 </div>
 <button id="replay" hidden>▶ 再看一遍</button>
 <div id="loading">LOADING · 正在搭建场景</div>

@@ -5,7 +5,7 @@
 > **当前状态：制作中，还不是成片。** 时间轴共 16 章、合计 **11 分 58 秒**，16 章都已有具体实现（整片可以从头播到尾，不再有占位画面），但都还停在「已实现」，尚未经过人工逐章检查。
 > 「有实现」不等于「已完成」——每章的状态、待办、已知问题和验收记录见 **[docs/progress.md](docs/progress.md)**。
 
-本项目是第二版（v2）。根目录下还留着第一版的脚本，**不要按第一版的教程操作**（见文末「旧版文件」）。
+本项目是第二版（v2）。第一版的脚本和配乐已从工作目录移除，需要查阅时可从 Git 历史恢复。
 
 ## 准备
 
@@ -86,19 +86,9 @@ npm run render -- --scale 1 --fps 24 --crf 18
 
 生成物（不进 Git）：`dist/`、`assets/index.json`、`_shots/`、`_render/`、`光速文明.mp4`。`index.html` 由 `npm run build` 生成，需要和 `dist/film.js` 一起使用。
 
-## 旧版（v1）文件：状态与归属
+## 旧版（v1）
 
-第一版是约 5 分 28 秒的「黑底霓虹点线」风格，已被 v2 取代。下列文件**暂时保留、不再维护**，等确认没有需要迁移的内容后再统一归档；不要用它们构建或导出 v2。
-
-| 文件 | 第一版的用途 | 现状 |
-|---|---|---|
-| `build.py` | 把 `src/head.html` + `src/core.js` 等拼成 `index.html` / `test.html`（three 0.147 + CDN） | 已停用。直接运行会覆盖 v2 的 `index.html`，现在默认拒绝（需 `--force`） |
-| `render.js` · `spot.js` · `audio_render.js` | v1 的逐帧导出、截图、配乐渲染（写死了 Linux 沙箱里的 Chromium 路径） | 已停用，由 `tools/render.mjs` · `tools/spot.mjs` · `tools/audio.mjs` 取代 |
-| `src/head.html` · `src/core.js` · `src/audio.js` · `src/scenes1.js` · `src/scenes2.js` · `src/player.js` | v1 的页面、引擎、配乐与全部场景 | 已停用，由 `src/engine/` 与 `src/chapters/` 取代；v2 不引用它们 |
-| `land.b64` · `us.b64` | v1 点阵地球与美国地图的陆地掩膜 | 只被 v1 使用 |
-| `soundtrack.mp3` | v1 渲染好的配乐 | 只属于 v1；v2 配乐由 `npm run audio` 生成 |
-| `_tools/` | v1 时期的辅助脚本（拼图、截图）与素材收集 / 分章制作的工作流定义（`_tools/wf/`） | 归档候选；`_tools/wf/` 记录了素材来源与分工方式，归档前可保留作参考 |
-| `docs/preview/v1_old.jpg` | v1 画面截图 | 对比用 |
+第一版是约 5 分 28 秒的「黑底霓虹点线」风格，已被 v2 取代。旧版脚本、配乐和对比截图不再参与当前构建，已从工作目录清理；需要时可在 Git 历史中查阅。
 
 ## 数据来源
 

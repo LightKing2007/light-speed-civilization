@@ -386,11 +386,11 @@ export default {
       if (r1 > .95) ink.text(g, '十多天', x + w, y + 40, { font: ink.sans(26, 500), color: ink.white, align: 'right' });
       const r2 = ss(45.0, 45.3, t);
       if (r2 > 0) {
-        g.globalAlpha = r2; ink.text(g, '1866 电报', x, y + 130, { font: ink.sans(24), color: ink.white });
+        g.save(); g.globalAlpha *= r2; ink.text(g, '1866 电报', x, y + 130, { font: ink.sans(24), color: ink.white });
         g.fillStyle = ink.accent; g.fillRect(x, y + 146, 5, 22);
         ink.text(g, '几分钟', x + w, y + 130, { font: ink.sans(26, 500), color: ink.accent, align: 'right' });
         ink.text(g, '按 10 天 ÷ 5 分钟估算', x + w, y + 204, { font: ink.sans(20), color: 'rgba(238,238,232,.85)', align: 'right' });
-        g.globalAlpha = 1;
+        g.restore();
       }
     } });
 
